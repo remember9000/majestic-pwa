@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Majestic</title>
+<meta name="theme-color" content="#002147">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css?v=6">
+</head>
+<body>
+
+<!-- Onboarding -->
+<section id="onboarding" hidden>
+  <div class="onboard-wrap">
+    <div class="onboard-icon">▦</div>
+    <h1>Enter your code</h1>
+    <p class="muted">Your building's code unlocks its app.</p>
+    <input id="codeInput" type="text" autocapitalize="characters" autocomplete="off"
+           spellcheck="false" placeholder="e.g. MAJ123">
+    <button id="unlockBtn" class="primary">Unlock</button>
+    <p id="onboardError" class="error" hidden></p>
+  </div>
+</section>
+
+<!-- Home -->
+<section id="home" hidden>
+  <header class="bar">
+    <span id="barTitle"></span>
+    <button id="gearBtn" class="gear" title="Settings">⚙︎</button>
+  </header>
+
+  <img id="brandPhoto" alt="" hidden>
+
+  <main class="wrap">
+    <div id="alertsSection"></div>
+    <div id="noticesSection"></div>
+    <div id="blockedBanner" class="card blocked" hidden>
+      ⛔ Access suspended — please contact your building manager.
+    </div>
+    <div id="navButtons"></div>
+
+    <footer class="footer">
+      <div id="legalLinks"></div>
+      <div><a id="feedbackLink" href="#" hidden>Feedback for App</a></div>
+    </footer>
+  </main>
+</section>
+
+<!-- Subpage (My Details, Let Us Know, forms) -->
+<section id="page" hidden>
+  <header class="bar">
+    <button id="backBtn" class="backbtn">‹ Back</button>
+    <span id="pageTitle"></span>
+  </header>
+  <main class="wrap" id="pageBody"></main>
+</section>
+
+<!-- Alert modal (thank-you / errors) -->
+<div id="alertBox" hidden>
+  <div class="alert-card">
+    <h3 id="alertTitle"></h3>
+    <p id="alertMsg"></p>
+    <button id="alertClose" class="primary">Close</button>
+  </div>
+</div>
+
+<!-- Document overlay (privacy / terms) -->
+<div id="docOverlay" hidden>
+  <header class="bar">
+    <span id="docTitle"></span>
+    <button id="docClose" class="gear">Done</button>
+  </header>
+  <div class="doc-body"><pre id="docText"></pre></div>
+</div>
+
+<!-- Settings sheet -->
+<div id="settingsSheet" hidden>
+  <div class="sheet-card">
+    <button id="installBtn" hidden>Install app</button>
+    <button id="changeProperty" class="destructive">Change Property</button>
+    <button id="settingsCancel">Cancel</button>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+
+<script src="app.js?v=6"></script>
+<script src="pages.js?v=6"></script>
+<script src="reports.js?v=6"></script>
+<script src="content.js?v=6"></script>
+</body>
+</html>
