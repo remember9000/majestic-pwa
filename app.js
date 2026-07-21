@@ -256,10 +256,11 @@ async function boot() {
   initChrome();
   initPWA();
 
-  // QR onboarding: ?code=MAJ123 (optionally &backend=<url> for other tenants)
+  // QR onboarding: ?code=MAJ123. The backend URL is deliberately NOT
+  // accepted from the URL — a crafted link/QR could otherwise silently
+  // repoint every submission at an attacker's endpoint. Other tenants
+  // get their own hosted copy with their own BACKEND_DEFAULT.
   const params = new URLSearchParams(location.search);
-  const qrBackend = params.get('backend');
-  if (qrBackend && qrBackend.startsWith('https://')) store.backendURL = qrBackend;
   const qrCode = (params.get('code') || '').trim().toUpperCase();
 
   if (store.config) {

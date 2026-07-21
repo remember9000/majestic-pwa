@@ -458,7 +458,7 @@ Pages.myDetails = function () {
     renderAgent();
     body.appendChild(c);
 
-    body.appendChild(el('<div class="fhint" style="text-align:center">Details are saved automatically and stay on this device.</div>'));
+    body.appendChild(el('<div class="fhint" style="text-align:center">Details are saved automatically on this device and included in the reports and requests you submit.</div>'));
   });
 };
 
