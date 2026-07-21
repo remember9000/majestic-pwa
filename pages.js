@@ -316,6 +316,10 @@ Pages.letUsKnow = function () {
     c = card();
     c.appendChild(mk('🔑', 'Request an Access Pass', Pages.accessPass));
     c.appendChild(mk('↕️', 'Book the Lift', Pages.elevator));
+    // Only buildings that list amenities in the sheet get this.
+    if ((config.amenities || []).length) {
+      c.appendChild(mk('📅', 'Book an Amenity', Pages.amenityCalendar));
+    }
     body.appendChild(c);
 
     body.appendChild(sectionTitle(label(config, 'giveNotice', 'Give Notice')));
@@ -658,4 +662,164 @@ Pages.elevator = () => formPage({
   }),
   successTitle: 'Thank you for your request',
   successMsg: (id) => `Your booking request has been recorded (reference ${id}). The building manager will confirm your slot.`
+});
+
+// ---------- amenity bookings (shared calendar + request form) ----------
+// Amenities come from the sheet's "Amenities" column; the calendar shows
+// upcoming Tentative/Confirmed bookings (no names — only dates, times,
+// status, and a "your booking" tag for this device's own requests).
+
+async function fetchBookings() {
+  const u = new URL(store.backendURL);
+  u.searchParams.set('action', 'bookings');
+  u.searchParams.set('code', store.config.code);
+  u.searchParams.set('deviceId', store.deviceId);
+  const r = await fetch(u);
+  const j = await r.json();
+  if (!j.success) throw new Error(j.error || 'Could not load the bookings calendar.');
+  return j.bookings || [];
+}
+
+// "15:00" -> "3:00 pm"; "2026-07-25" -> "Sat 25 Jul"
+function displayHM(hm) {
+  const m = String(hm).match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return hm;
+  const h = Number(m[1]);
+  return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${h >= 12 ? 'pm' : 'am'}`;
+}
+function displayISO(iso) {
+  const [y, mo, d] = String(iso).split('-').map(Number);
+  if (!y || !mo || !d) return iso;
+  return new Date(y, mo - 1, d).toLocaleDateString('en-AU',
+    { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+Pages.amenityCalendar = function () {
+  const config = store.config;
+  const amenities = config.amenities || [];
+  openPage('Book an Amenity', (body) => {
+    const state = { amenity: amenities[0] || '', month: new Date(),
+                    selected: null, bookings: [], loaded: false, error: '' };
+    const iso = (y, m, d) =>
+      `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const forAmenity = () => state.bookings.filter((b) => b.amenity === state.amenity);
+    const byDay = () => {
+      const map = {};
+      forAmenity().forEach((b) => { (map[b.date] = map[b.date] || []).push(b); });
+      return map;
+    };
+
+    const picker = card();
+    picker.appendChild(selectRow('Amenity', amenities, state.amenity,
+      (v) => { state.amenity = v || amenities[0] || ''; state.selected = null; redrawCal(); redrawList(); }));
+    body.appendChild(picker);
+
+    body.appendChild(sectionTitle('Availability'));
+    const calCard = card();
+    body.appendChild(calCard);
+
+    const listTitle = sectionTitle('Upcoming Bookings');
+    const listCard = card();
+    body.appendChild(listTitle);
+    body.appendChild(listCard);
+
+    const reqBtn = el('<button class="submitbtn">Request a Booking</button>');
+    reqBtn.addEventListener('click', () => Pages.amenityBooking(state.amenity));
+    body.appendChild(reqBtn);
+    body.appendChild(el('<div class="fhint" style="text-align:center">New requests appear as tentative until the building manager confirms them.</div>'));
+
+    function redrawCal() {
+      calCard.innerHTML = '';
+      const y = state.month.getFullYear(), mo = state.month.getMonth();
+      const monthName = state.month.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+      const nav = el(`<div class="cal-nav"><button class="cal-arrow">‹</button><span>${esc(monthName)}</span><button class="cal-arrow">›</button></div>`);
+      nav.children[0].addEventListener('click', () => { state.month = new Date(y, mo - 1, 1); state.selected = null; redrawCal(); redrawList(); });
+      nav.children[2].addEventListener('click', () => { state.month = new Date(y, mo + 1, 1); state.selected = null; redrawCal(); redrawList(); });
+      calCard.appendChild(nav);
+
+      const grid = el('<div class="cal-grid"></div>');
+      ['M', 'T', 'W', 'T', 'F', 'S', 'S'].forEach((w) => grid.appendChild(el(`<div class="cal-wd">${w}</div>`)));
+      const lead = (new Date(y, mo, 1).getDay() + 6) % 7; // Monday-first
+      for (let i = 0; i < lead; i++) grid.appendChild(el('<div></div>'));
+      const dayCount = new Date(y, mo + 1, 0).getDate();
+      const map = byDay();
+      for (let d = 1; d <= dayCount; d++) {
+        const key = iso(y, mo + 1, d);
+        const cell = el(`<button class="cal-day${state.selected === key ? ' sel' : ''}"><span>${d}</span><span class="cal-dots"></span></button>`);
+        (map[key] || []).slice(0, 3).forEach((b) => {
+          cell.querySelector('.cal-dots').appendChild(
+            el(`<i class="cal-dot${b.status === 'confirmed' ? ' conf' : ''}"></i>`));
+        });
+        cell.addEventListener('click', () => {
+          state.selected = state.selected === key ? null : key;
+          redrawCal(); redrawList();
+        });
+        grid.appendChild(cell);
+      }
+      calCard.appendChild(grid);
+      calCard.appendChild(el('<div class="cal-legend"><span><i class="cal-dot conf"></i> Confirmed</span><span><i class="cal-dot"></i> Tentative</span></div>'));
+      if (!state.loaded) calCard.appendChild(el('<div class="fhint" style="text-align:center">Loading bookings…</div>'));
+      if (state.error) calCard.appendChild(el(`<div class="fhint" style="text-align:center">${esc(state.error)}</div>`));
+    }
+
+    function redrawList() {
+      const map = byDay();
+      const items = state.selected ? (map[state.selected] || []) : forAmenity();
+      listTitle.textContent = state.selected ? displayISO(state.selected) : 'Upcoming Bookings';
+      listCard.innerHTML = '';
+      if (!items.length) {
+        listCard.appendChild(el(`<div class="cal-empty">${state.selected ? 'No bookings this day.' : 'No upcoming bookings — it’s free.'}</div>`));
+      }
+      items.slice(0, 10).forEach((b) => {
+        listCard.appendChild(el(
+          `<div class="booking-row"><div><div>${esc(displayISO(b.date))}, ${esc(displayHM(b.start))}–${esc(displayHM(b.end))}</div>` +
+          (b.mine ? '<div class="booking-mine">Your booking</div>' : '') +
+          `</div><span class="badge${b.status === 'confirmed' ? ' conf' : ''}">${b.status === 'confirmed' ? 'Confirmed' : 'Tentative'}</span></div>`));
+      });
+    }
+
+    redrawCal(); redrawList();
+    fetchBookings()
+      .then((bs) => { state.bookings = bs; state.loaded = true; redrawCal(); redrawList(); })
+      .catch(() => { state.loaded = true; state.error = 'Couldn’t load the calendar.'; redrawCal(); });
+  });
+};
+
+Pages.amenityBooking = (preselect) => formPage({
+  title: 'Request a Booking',
+  prefix: 'AB', draftKey: 'amenity', submitLabel: 'Submit Request',
+  fresh: () => ({ amenity: (typeof preselect === 'string' && preselect) || (store.config.amenities || [])[0] || '',
+                  bookingDate: todayISO(), startTime: '15:00', endTime: '17:00', details: '' }),
+  sections(body, s, refresh) {
+    body.appendChild(sectionTitle('Booking Details'));
+    const c = card();
+    c.appendChild(selectRow('Amenity *', store.config.amenities || [],
+      s.amenity, (v) => { s.amenity = v; refresh(); }, 'Select amenity…'));
+    c.appendChild(dateRow('Date *', s.bookingDate, (i) => { s.bookingDate = i.value; }, todayISO()));
+    c.appendChild(timeRow('From *', s.startTime, (v) => {
+      s.startTime = v;
+      if (s.endTime <= s.startTime) {
+        const [h, m] = v.split(':').map(Number);
+        s.endTime = String(Math.min(h + 2, 23)).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+        drawPage();
+      }
+      refresh();
+    }));
+    c.appendChild(timeRow('Until *', s.endTime, (v) => { s.endTime = v; refresh(); }));
+    c.appendChild(textareaRow('Occasion / guests (optional)', s.details,
+      (v) => { s.details = v; }, 'e.g. birthday gathering, 8 people'));
+    body.appendChild(c);
+  },
+  isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() &&
+    s.amenity && s.endTime > s.startTime,
+  invalidMsg: 'Please fill in your name, unit number, the amenity, and an end time after the start time before submitting.',
+  // ISO date + 24h times so the backend calendar can sort and filter them.
+  buildPayload: (s) => ({
+    action: 'submitAmenityBooking',
+    amenity: s.amenity, bookingDate: s.bookingDate,
+    startTime: s.startTime, endTime: s.endTime,
+    details: s.details
+  }),
+  successTitle: 'Thank you for your request',
+  successMsg: (id) => `Your booking request has been recorded. Reference: ${id}. It will show as tentative on the calendar until the building manager confirms it.`
 });
