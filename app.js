@@ -149,14 +149,15 @@ function renderNavButtons(config, blocked) {
 
 function renderLegal(config) {
   const links = [];
-  if ((config.privacyStatement || '').trim()) links.push(['Privacy Statement', config.privacyStatement]);
-  if ((config.termsAndConditions || '').trim()) links.push(['Terms of Use', config.termsAndConditions]);
+  // Short link text on the footer; full titles on the opened document.
+  if ((config.privacyStatement || '').trim()) links.push(['Privacy', 'Privacy Statement', config.privacyStatement]);
+  if ((config.termsAndConditions || '').trim()) links.push(['Terms', 'Terms of Use', config.termsAndConditions]);
   $('legalLinks').innerHTML = links.map(([t], i) => `<a href="#" data-doc="${i}">${esc(t)}</a>`).join('');
   $('legalLinks').querySelectorAll('a').forEach((a) => {
     a.addEventListener('click', (e) => {
       e.preventDefault();
-      const [t, text] = links[Number(a.dataset.doc)];
-      $('docTitle').textContent = t;
+      const [, title, text] = links[Number(a.dataset.doc)];
+      $('docTitle').textContent = title;
       $('docText').textContent = text;
       $('docOverlay').hidden = false;
     });
