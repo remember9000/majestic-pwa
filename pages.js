@@ -248,11 +248,12 @@ function formPage(opts) {
     const errEl = footer.querySelector('.ferror');
     const btn = footer.querySelector('.submitbtn');
 
+    // Errors appear only after a submit attempt, never on first open.
+    let attempted = false;
     function refresh() {
       const d = details.load();
       const ok = opts.isValid(state, d);
-      btn.disabled = !ok;
-      errEl.hidden = ok;
+      errEl.hidden = !attempted || ok;
       errEl.textContent = opts.invalidMsg;
     }
 
@@ -261,6 +262,12 @@ function formPage(opts) {
     refresh();
 
     btn.addEventListener('click', async () => {
+      if (!opts.isValid(state, details.load())) {
+        attempted = true;
+        refresh();
+        errEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return;
+      }
       btn.disabled = true;
       btn.textContent = 'Submitting…';
       try {
@@ -497,8 +504,8 @@ Pages.trades = () => formPage({
     body.appendChild(q);
   },
   isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() &&
-    s.workType && s.workDescription.trim() && s.commonProperty && s.noisy && s.servicesInterruption,
-  invalidMsg: 'Please fill in your name, unit number, the work type, a description, and answer all questions before submitting.',
+    s.workType && s.workDescription.trim(),
+  invalidMsg: 'Please fill in your name, unit number, the work type, and a description before submitting.',
   buildPayload: (s) => ({
     action: 'submitTrades',
     startDate: fmtDate(s.startDate), endDate: fmtDate(s.endDate),
@@ -544,8 +551,8 @@ Pages.renovation = () => formPage({
     body.appendChild(q);
   },
   isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() &&
-    s.workDescription.trim() && s.commonProperty && s.noisy && s.servicesInterruption,
-  invalidMsg: 'Please fill in your name, unit number, a description, and answer all questions before submitting.',
+    s.workDescription.trim(),
+  invalidMsg: 'Please fill in your name, unit number, and a description before submitting.',
   buildPayload: (s) => ({
     action: 'submitRenovation',
     startDate: fmtDate(s.startDate), endDate: fmtDate(s.endDate),
@@ -590,8 +597,8 @@ Pages.accessPass = () => formPage({
     body.appendChild(q);
   },
   isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() &&
-    s.passType && s.passHolderName.trim() && s.details.trim() && s.replacingLost,
-  invalidMsg: "Please fill in your name, unit number, the pass type, who it's for, the details, and answer the lost-pass question before submitting.",
+    s.passType && s.passHolderName.trim() && s.details.trim(),
+  invalidMsg: "Please fill in your name, unit number, the pass type, who it's for, and the details before submitting.",
   buildPayload: (s) => ({
     action: 'submitAccessPass',
     passType: s.passType, passHolderName: s.passHolderName,
@@ -639,8 +646,8 @@ Pages.elevator = () => formPage({
     body.appendChild(q);
   },
   isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() &&
-    s.purpose && s.details.trim() && s.needsLoadingAccess && s.needsPadding,
-  invalidMsg: 'Please fill in your name, unit number, the purpose, the details, and answer both questions before submitting.',
+    s.purpose && s.details.trim(),
+  invalidMsg: 'Please fill in your name, unit number, the purpose, and the details before submitting.',
   buildPayload: (s) => ({
     action: 'submitElevator',
     purpose: s.purpose, bookingDate: fmtDate(s.bookingDate),

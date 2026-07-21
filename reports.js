@@ -204,9 +204,8 @@ Pages.leak = () => formPage({
 
     photosSection(body, s);
   },
-  isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.location.trim() &&
-    s.sourceIdentified && s.mitigationPossible && s.weatherRelated && s.changesOverTime && s.neighbourContacted,
-  invalidMsg: 'Please fill in your name, unit number, location, and answer all questions before submitting.',
+  isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.location.trim(),
+  invalidMsg: 'Please fill in your name, unit number, and the location before submitting.',
   buildPayload: (s) => ({
     action: 'submitLeak',
     dateNoticed: fmtDateTime(s.dateNoticed, s.timeNoticed),
@@ -261,8 +260,8 @@ Pages.damage = () => formPage({
     photosSection(body, s);
   },
   isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.area &&
-    s.damageDescription.trim() && s.safetyHazard && s.securityRisk && s.causeKnown && s.witnessed && s.likelyToWorsen,
-  invalidMsg: 'Please fill in your name, unit number, the area, a description, and answer all questions before submitting.',
+    s.damageDescription.trim(),
+  invalidMsg: 'Please fill in your name, unit number, the area, and a description before submitting.',
   buildPayload: (s) => ({
     action: 'submitDamage',
     dateNoticed: fmtDateTime(s.dateNoticed, s.timeNoticed),
@@ -331,8 +330,8 @@ Pages.security = () => formPage({
     photosSection(body, s);
   },
   isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.incidentType && s.area &&
-    s.incidentDescription.trim() && s.isOngoing && s.sawPerson && s.reportedToPolice && s.cctvNearby,
-  invalidMsg: 'Please fill in your name, unit number, the incident type, area, a description, and answer all questions before submitting.',
+    s.incidentDescription.trim(),
+  invalidMsg: 'Please fill in your name, unit number, the incident type, area, and a description before submitting.',
   buildPayload: (s) => ({
     action: 'submitSecurity',
     occurredAt: fmtDateTime(s.occurredDate, s.occurredTime),
@@ -387,8 +386,8 @@ Pages.noise = () => formPage({
     audioSection(body, s);
   },
   isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.noiseType &&
-    s.noiseDescription.trim() && s.isRecurring && s.quietHours && s.impact && s.raisedWithPerson,
-  invalidMsg: 'Please fill in your name, unit number, the noise type, a description, and answer all questions before submitting.',
+    s.noiseDescription.trim(),
+  invalidMsg: 'Please fill in your name, unit number, the noise type, and a description before submitting.',
   buildPayload: (s) => ({
     action: 'submitNoise',
     firstStarted: fmtDateTime(s.firstDate, s.firstTime),
