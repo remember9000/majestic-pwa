@@ -108,12 +108,16 @@ function initOnboarding() {
 }
 
 // ---------- home ----------
-// One-time welcome popup, first time a device lands on home.
+// One-time welcome popup, first time a device lands on home. The sheet's
+// "Welcome Message" column, if filled, is the body — each building writes
+// its own. Fallback self-brands with the building name.
 function maybeShowWelcome() {
   if (localStorage.getItem('welcomeShown')) return;
   localStorage.setItem('welcomeShown', '1');
-  showAlert('Welcome!',
-    'StrataChannel is packed with features that let you send and receive information relevant to your home and building.\n\nEnjoy!');
+  const config = store.config || {};
+  const custom = (config.welcomeMessage || '').trim();
+  showAlert('Welcome!', custom ||
+    'Your ' + (config.appName || '') + ' app is packed with features that let you send and receive information relevant to your home and building.\n\nEnjoy!');
 }
 
 function renderHome() {

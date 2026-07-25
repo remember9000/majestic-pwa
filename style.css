@@ -420,4 +420,4 @@ button.submitbtn:disabled { opacity: .45; }
 #installBannerClose { flex-shrink: 0; background: none; border: none; color: #fff;
   opacity: .75; font-size: 16px; padding: 4px 6px; cursor: pointer; }
 
-#alertMsg { white-space: pre-line; }
+#alertMsg { white-space: pre-line; text-align: center; }
