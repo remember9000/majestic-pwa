@@ -219,13 +219,65 @@ async function loadNotices(config) {
 }
 
 // ---------- PWA: service worker + install prompt ----------
+// ---------- install nudge (second visit) ----------
+// First load stays quiet; from the second visit on, returning residents get
+// a gentle banner. Android/Chrome can trigger the real install dialog; iOS
+// Safari only allows coaching (Share -> Add to Home Screen). Never shown
+// when already running from the home screen; dismissing snoozes it for a
+// few visits rather than nagging.
+let deferredInstallPrompt = null;
+
+const installNudge = {
+  get visits() { return Number(localStorage.getItem('visitCount') || 0); },
+  set visits(v) { localStorage.setItem('visitCount', String(v)); },
+  get snoozedUntil() { return Number(localStorage.getItem('installSnoozeUntil') || 0); },
+  set snoozedUntil(v) { localStorage.setItem('installSnoozeUntil', String(v)); }
+};
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+const isIOSBrowser = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+const IOS_SHARE_SVG = '<svg width="13" height="16" viewBox="0 0 14 17" fill="none" ' +
+  'stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M7 1v10M4 3.5L7 1l3 2.5"/><path d="M4.5 6.5H2v9h10v-9H9.5"/></svg>';
+
+function maybeOfferInstall() {
+  if (isStandalone() || !store.config) return;
+  if (installNudge.visits < 2 || installNudge.visits < installNudge.snoozedUntil) return;
+  const banner = $('installBanner');
+  if (!banner.hidden) return;
+  if (isIOSBrowser) {
+    $('installBannerText').innerHTML =
+      'Add this app to your Home Screen: tap <b>Share</b> ' + IOS_SHARE_SVG +
+      ' below, then <b>Add to Home Screen</b>.';
+    $('installBannerGo').hidden = true;
+    banner.hidden = false;
+  } else if (deferredInstallPrompt) {
+    $('installBannerText').textContent =
+      'Add this app to your home screen for one-tap access.';
+    $('installBannerGo').hidden = false;
+    banner.hidden = false;
+  }
+}
+
 function initPWA() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => { /* http/localhost quirks are fine */ });
   }
-  // Android/Chrome offers an install event; surface it in the gear sheet.
+
+  // Count one visit per browser session (reloads don't inflate it).
+  if (!sessionStorage.getItem('visitCounted')) {
+    sessionStorage.setItem('visitCounted', '1');
+    installNudge.visits += 1;
+  }
+
+  // Android/Chrome offers an install event; keep the gear-sheet button
+  // AND feed the second-visit banner.
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
+    deferredInstallPrompt = e;
     const btn = $('installBtn');
     btn.hidden = false;
     btn.onclick = async () => {
@@ -233,6 +285,25 @@ function initPWA() {
       $('settingsSheet').hidden = true;
       e.prompt();
     };
+    maybeOfferInstall();
+  });
+
+  $('installBannerGo').addEventListener('click', async () => {
+    $('installBanner').hidden = true;
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+    }
+  });
+  $('installBannerClose').addEventListener('click', () => {
+    $('installBanner').hidden = true;
+    // Snooze: don't ask again until a few more visits have happened.
+    installNudge.snoozedUntil = installNudge.visits + 4;
+  });
+  window.addEventListener('appinstalled', () => {
+    $('installBanner').hidden = true;
+    $('installBtn').hidden = true;
   });
 }
 
@@ -266,6 +337,7 @@ async function boot() {
 
   if (store.config) {
     renderHome();
+    maybeOfferInstall();
     // silent refresh, mirroring the iOS launch-time config re-fetch
     try {
       const fresh = await fetchConfig(store.config.code);
@@ -278,6 +350,7 @@ async function boot() {
     show('onboarding');
     $('codeInput').value = qrCode;
     $('unlockBtn').click();
+    // Once the auto-unlock lands on home, the next visit becomes eligible.
   } else {
     show('onboarding');
   }
