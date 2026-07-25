@@ -108,6 +108,14 @@ function initOnboarding() {
 }
 
 // ---------- home ----------
+// One-time welcome popup, first time a device lands on home.
+function maybeShowWelcome() {
+  if (localStorage.getItem('welcomeShown')) return;
+  localStorage.setItem('welcomeShown', '1');
+  showAlert('Welcome!',
+    'StrataChannel is packed with features that let you send and receive information relevant to your home and building.\n\nEnjoy!');
+}
+
 function renderHome() {
   const config = store.config;
   if (!config) { show('onboarding'); return; }
@@ -127,6 +135,7 @@ function renderHome() {
   renderNavButtons(config, false);
   renderLegal(config);
   loadNotices(config);
+  maybeShowWelcome();
 }
 
 function renderNavButtons(config, blocked) {
