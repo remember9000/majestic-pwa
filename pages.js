@@ -243,7 +243,9 @@ function formPage(opts) {
 
     reporterSection(body, config);
 
-    const footer = el(`<div><div class="ferror" hidden></div>
+    const footer = el(`<div>
+      <div class="fhint" style="text-align:center">Submissions are read by the building manager and committee. False or abusive submissions may be referred to police.</div>
+      <div class="ferror" hidden></div>
       <button class="submitbtn">${esc(opts.submitLabel || 'Submit')}</button></div>`);
     const errEl = footer.querySelector('.ferror');
     const btn = footer.querySelector('.submitbtn');
@@ -280,9 +282,14 @@ function formPage(opts) {
         payload.unitNumber = d.unitNumber;
         payload.phone = d.phoneNumber;
         payload.email = d.email;
-        await postReport(payload);
+        const resp = await postReport(payload);
         delete drafts[opts.draftKey];
-        showAlert(opts.successTitle, opts.successMsg(id), goBack);
+        // Server-decided marker: accepted but parked until the reporter
+        // verifies their email (see My Details).
+        const nudge = resp && resp.pendingVerification
+          ? '\n\nTo send it to the building manager and receive progress updates, please verify your email address on the My Details page.'
+          : '';
+        showAlert(opts.successTitle, opts.successMsg(id) + nudge, goBack);
       } catch (e) {
         showAlert('Submission Failed', e.message);
         btn.disabled = false;
