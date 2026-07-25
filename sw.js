@@ -6,7 +6,7 @@
 
 'use strict';
 
-const VERSION = 'v13';
+const VERSION = 'v14';
 const CACHE = 'majestic-shell-' + VERSION;
 
 const SHELL = [
