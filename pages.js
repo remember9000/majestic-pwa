@@ -244,7 +244,7 @@ function formPage(opts) {
     reporterSection(body, config);
 
     const footer = el(`<div>
-      <div class="fhint" style="text-align:center">Submissions are read by the building manager and committee. False or abusive submissions may be referred to police.</div>
+      <div class="fhint" style="text-align:center">Submissions go to your strata manager, building manager and committee — please keep them accurate and courteous.</div>
       <div class="ferror" hidden></div>
       <button class="submitbtn">${esc(opts.submitLabel || 'Submit')}</button></div>`);
     const errEl = footer.querySelector('.ferror');

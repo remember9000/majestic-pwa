@@ -11,11 +11,11 @@ const CACHE = 'majestic-shell-' + VERSION;
 
 const SHELL = [
   './index.html',
-  './style.css?v=13',
-  './app.js?v=13',
-  './pages.js?v=13',
-  './reports.js?v=13',
-  './content.js?v=13',
+  './style.css?v=14',
+  './app.js?v=14',
+  './pages.js?v=14',
+  './reports.js?v=14',
+  './content.js?v=14',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
