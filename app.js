@@ -3,7 +3,7 @@
 
 'use strict';
 
-const BACKEND_DEFAULT = 'https://script.google.com/macros/s/AKfycbzPpjeUtGsX7LkHqVUmnzJvS0OZ_HjTGe1JLiOOJk2F7MFpYW84_JJTPW3G9LWqZgjpVQ/exec';
+const BACKEND_DEFAULT = 'https://script.google.com/macros/s/AKfycbxSRjvUXWCJB93OA0kOytB0buSVSv9s-TXRr19nv0rek1qlZ973MKfXvEiQP5TqEpuN6g/exec';
 const APP_VERSION = 'pwa-0.1';
 
 // ---------- tiny helpers ----------
