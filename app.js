@@ -148,6 +148,7 @@ function renderNavButtons(config, blocked) {
     ['👤', label(config, 'myDetails', 'My Details'), () => Pages.myDetails()],
     ['🏛', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), () => Pages.myBuilding()],
     ...(blocked ? [] : [['🗣', label(config, 'letUsKnow', 'Let Us Know'), () => Pages.letUsKnow()]]),
+    ['📋', label(config, 'myReports', 'My Reports'), () => Pages.myReports()],
     ['❓', label(config, 'faq', 'Frequently Asked Questions'), () => Pages.faq()]
   ];
   holder.innerHTML = btns.map(([icon, title], i) =>

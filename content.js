@@ -348,3 +348,106 @@ Pages.faq = function () {
     }).catch(() => { if (!items.length) holder.innerHTML = '<div class="ferror">Couldn\'t load the FAQs.</div>'; });
   });
 };
+
+
+// ---------- My Reports ----------
+// This device's own submissions with status + update history. The
+// backend scopes strictly by device id; nothing here is shared.
+
+async function fetchMyReports() {
+  const u = new URL(store.backendURL);
+  u.searchParams.set('action', 'myReports');
+  u.searchParams.set('code', store.config.code);
+  u.searchParams.set('deviceId', store.deviceId);
+  const r = await fetch(u);
+  const j = await r.json();
+  if (!j.success) throw new Error(j.error || 'Could not load your reports.');
+  return j.reports || [];
+}
+
+function statusPill(rep) {
+  const text = rep.pending ? 'Verify email' : (rep.status || 'Received');
+  const cls = rep.pending ? 'pill warn' : (rep.isClosed ? 'pill' : 'pill open');
+  return `<span class="${cls}">${esc(text)}</span>`;
+}
+
+Pages.myReports = function () {
+  openPage(label(store.config, 'myReports', 'My Reports'), (body) => {
+    const status = el('<div class="fhint" style="text-align:center">Loading…</div>');
+    body.appendChild(status);
+    const holder = el('<div></div>');
+    body.appendChild(holder);
+
+    fetchMyReports().then((reports) => {
+      status.remove();
+      holder.innerHTML = '';
+      if (!reports.length) {
+        holder.appendChild(el(`<div class="card"><div class="empty-state">
+          <div class="empty-icon">🗂</div>
+          <div class="empty-title">Nothing yet</div>
+          <div class="empty-sub">Reports, requests and notices you send from this device will appear here, with their progress.</div>
+        </div></div>`));
+        return;
+      }
+      const groups = [['Open', reports.filter((r) => !r.isClosed)],
+                      ['Completed', reports.filter((r) => r.isClosed)]];
+      groups.forEach(([heading, list]) => {
+        if (!list.length) return;
+        holder.appendChild(sectionTitle(heading));
+        const c = card();
+        list.forEach((rep) => {
+          const row = el(`<button class="report-row">
+            <div class="report-head"><span class="report-type">${esc(rep.type)}</span>${statusPill(rep)}</div>
+            ${rep.summary ? `<div class="report-sum">${esc(rep.summary)}</div>` : ''}
+            <div class="report-meta">${esc(rep.reference)} — ${esc(rep.date)}</div>
+          </button>`);
+          row.addEventListener('click', () => Pages.myReportDetail(rep));
+          c.appendChild(row);
+        });
+        holder.appendChild(c);
+      });
+    }).catch(() => {
+      status.textContent = "Couldn't load your reports just now.";
+    });
+  });
+};
+
+Pages.myReportDetail = function (rep) {
+  openPage(rep.type, (body) => {
+    body.appendChild(sectionTitle('Summary'));
+    const c = card();
+    c.appendChild(el(`<div class="frow"><div class="inline"><span>Reference</span><span>${esc(rep.reference)}</span></div></div>`));
+    c.appendChild(el(`<div class="frow"><div class="inline"><span>Submitted</span><span>${esc(rep.date)}</span></div></div>`));
+    c.appendChild(el(`<div class="frow"><div class="inline"><span>Status</span>${statusPill(rep)}</div></div>`));
+    if (rep.summary) {
+      c.appendChild(el(`<div class="frow"><label>What you told us</label><div class="report-sum">${esc(rep.summary)}</div></div>`));
+    }
+    body.appendChild(c);
+
+    if (rep.pending) {
+      const w = card();
+      const link = el('<button class="navrow"><span class="icon">✉️</span>Verify your email address<span class="chev">›</span></button>');
+      link.addEventListener('click', () => Pages.myDetails());
+      w.appendChild(link);
+      body.appendChild(w);
+      body.appendChild(el('<div class="fhint">This submission is recorded but hasn\'t been sent to the building manager yet. Verifying your email releases it.</div>'));
+    }
+
+    body.appendChild(sectionTitle('Progress'));
+    const p = card();
+    if (!rep.updates || !rep.updates.length) {
+      p.appendChild(el(`<div class="cal-empty">${rep.pending
+        ? 'No updates yet — it will start moving once your email is verified.'
+        : "No updates yet. You'll be notified here when the status changes."}</div>`));
+    } else {
+      rep.updates.forEach((u) => {
+        p.appendChild(el(`<div class="update-row">
+          <div class="update-title">${esc(u.title)}</div>
+          <div class="update-msg">${esc(u.message)}</div>
+          <div class="update-date">${esc(u.date)}</div>
+        </div>`));
+      });
+    }
+    body.appendChild(p);
+  });
+};
