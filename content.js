@@ -535,16 +535,25 @@ const CLASSIFY_FORMS = [
   { key: 'publicProperty', label: 'Public Property', icon: '🪧', page: () => Pages.publicProperty(), field: null }
 ];
 
-async function classifyText(text) {
-  try {
-    const u = new URL(store.backendURL);
-    u.searchParams.set('action', 'classify');
-    u.searchParams.set('code', store.config.code);
-    u.searchParams.set('text', text);
-    const r = await fetch(u);
-    const j = await r.json();
-    return j.success && j.suggestion ? j : null;
-  } catch { return null; }
+// On-device ranking against the building's own keyword rules (shipped
+// in the config). Instant, works offline, and the half-typed text never
+// leaves the phone — only a completed submission does.
+function rankForms(text) {
+  const rules = (store.config && store.config.classificationRules) || [];
+  const hay = String(text || '').toLowerCase();
+  if (hay.length < 3 || !rules.length) return [];
+  const scores = {};
+  rules.forEach((rule) => {
+    (rule.keywords || []).forEach((term) => {
+      if (term && hay.includes(term)) {
+        scores[rule.suggests] = scores[rule.suggests] || { label: rule.label, score: 0 };
+        scores[rule.suggests].score += Number(rule.weight) || 1;
+      }
+    });
+  });
+  return Object.keys(scores)
+    .map((key) => ({ key, label: scores[key].label, score: scores[key].score }))
+    .sort((a, b) => (b.score - a.score) || a.label.localeCompare(b.label));
 }
 
 function logClassification(text, suggested, chosen) {
@@ -569,11 +578,10 @@ Pages.generalReport = function () {
     row.appendChild(ta);
     c.appendChild(row);
     body.appendChild(c);
-    body.appendChild(el('<div class="fhint">Describe it in your own words — we\'ll suggest the right form and carry your description across.</div>'));
+    const hint = el('<div class="fhint">Describe it in your own words — we\'ll suggest the right form as you type.</div>');
+    body.appendChild(hint);
 
     const results = el('<div></div>');
-    const go = el('<button class="submitbtn">Continue</button>');
-    body.appendChild(go);
     body.appendChild(results);
 
     function openForm(form, suggestedKey, text) {
@@ -582,34 +590,47 @@ Pages.generalReport = function () {
       form.page();
     }
 
-    go.addEventListener('click', async () => {
+    function formRow(form, text, topKey) {
+      const prominent = form.key === topKey;
+      const b = el(`<button class="navrow${prominent ? ' navrow-top' : ''}">` +
+        `<span class="icon">${form.icon}</span>` +
+        `${prominent ? 'Sounds like ' : ''}${esc(form.label)}<span class="chev">›</span></button>`);
+      b.addEventListener('click', () => openForm(form, topKey, text));
+      return b;
+    }
+
+    function render() {
       const text = ta.value.trim();
-      if (!text) return;
-      go.disabled = true;
-      go.textContent = 'Checking…';
-      const hit = await classifyText(text);
-      go.hidden = true;
+      const ranked = rankForms(text).slice(0, 3);
+      const topKey = ranked.length ? ranked[0].key : '';
+      hint.textContent = ranked.length
+        ? 'Tap a form to continue. Your description comes with you.'
+        : "Describe it in your own words — we'll suggest the right form as you type.";
+
       results.innerHTML = '';
-
-      const suggestedKey = hit ? hit.suggestion : '';
-      if (suggestedKey) {
-        const form = CLASSIFY_FORMS.find((f) => f.key === suggestedKey);
-        results.appendChild(sectionTitle('Best match'));
-        const sc = card();
-        const b = el(`<button class="navrow"><span class="icon">${form.icon}</span>Sounds like ${esc(form.label)}<span class="chev">›</span></button>`);
-        b.addEventListener('click', () => openForm(form, suggestedKey, text));
-        sc.appendChild(b);
-        results.appendChild(sc);
+      if (ranked.length) {
+        results.appendChild(sectionTitle(ranked.length === 1 ? 'Suggested' : 'Most likely'));
+        const rc = card();
+        ranked.forEach((m) => {
+          const form = CLASSIFY_FORMS.find((f) => f.key === m.key);
+          if (form) rc.appendChild(formRow(form, text, topKey));
+        });
+        results.appendChild(rc);
       }
-
-      results.appendChild(sectionTitle(suggestedKey ? 'Or choose another' : 'Choose a form'));
+      results.appendChild(sectionTitle(ranked.length ? 'Other forms' : 'Choose a form'));
       const oc = card();
-      CLASSIFY_FORMS.filter((f) => f.key !== suggestedKey).forEach((form) => {
-        const b = el(`<button class="navrow"><span class="icon">${form.icon}</span>${esc(form.label)}<span class="chev">›</span></button>`);
-        b.addEventListener('click', () => openForm(form, suggestedKey, text));
-        oc.appendChild(b);
-      });
+      CLASSIFY_FORMS
+        .filter((f) => !ranked.some((m) => m.key === f.key))
+        .forEach((form) => oc.appendChild(formRow(form, text, topKey)));
       results.appendChild(oc);
+    }
+
+    // Settle briefly after typing stops so the list doesn't churn.
+    let timer = null;
+    ta.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(render, 250);
     });
+    render();
   });
 };
