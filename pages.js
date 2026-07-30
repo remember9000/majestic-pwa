@@ -13,12 +13,18 @@ const details = {
   save(d) { localStorage.setItem('userDetails', JSON.stringify(d)); },
   blank() {
     return { title: '', firstName: '', lastName: '', unitNumber: '', phoneNumber: '',
-             email: '', verifiedEmail: '', carLicenses: '', carLots: '',
+             email: '', verifiedEmail: '', verifiedPhone: '',
+             carLicenses: '', carLots: '',
              hasAgent: false, managingAgent: '', managementCompany: '',
              agentContact: '', agentEmail: '' };
   },
   fullName(d) { return [d.title, d.firstName, d.lastName].filter(Boolean).join(' '); },
-  emailVerified(d) { return !!d.email && d.email === d.verifiedEmail; }
+  emailVerified(d) { return !!d.email && d.email === d.verifiedEmail; },
+  phoneVerified(d) {
+    const digits = (s) => String(s || '').replace(/\D/g, '');
+    return !!d.phoneNumber && !!d.verifiedPhone
+      && digits(d.phoneNumber) === digits(d.verifiedPhone);
+  }
 };
 
 // ---------- normalisers (ported from MyDetailsView.swift) ----------
@@ -234,12 +240,23 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const drafts = {};
 
 // ---------- generic form page ----------
+// Text carried over from the "not sure which form?" entry point. Set
+// just before navigating; consumed once by the next form that opens.
+let pendingPrefill = null;
+
 function formPage(opts) {
   // opts: {title, draftKey, fresh(), sections(body, state, refreshFooter),
   //        isValid(state, d), invalidMsg, buildPayload(state, d), successTitle, successMsg(id)}
   openPage(opts.title, (body) => {
     const config = store.config;
     const state = drafts[opts.draftKey] || (drafts[opts.draftKey] = opts.fresh());
+
+    // Carry across the resident's own words, if they came via the
+    // "tell us what's happened" entry point and haven't typed here yet.
+    if (pendingPrefill && pendingPrefill.field && !state[pendingPrefill.field]) {
+      state[pendingPrefill.field] = pendingPrefill.text;
+    }
+    pendingPrefill = null;
 
     reporterSection(body, config);
 
@@ -310,6 +327,11 @@ Pages.letUsKnow = function () {
       return b;
     };
 
+    let intro = card();
+    intro.appendChild(mk('💬', "Not sure? Tell us what's happened", Pages.generalReport));
+    body.appendChild(intro);
+    body.appendChild(el('<div class="fhint">Describe the problem in your own words and we\'ll suggest the right form.</div>'));
+
     body.appendChild(sectionTitle(label(config, 'reportIssue', 'Report an Issue')));
     let c = card();
     c.appendChild(mk('💧', 'Water Leak', Pages.leak));
@@ -366,7 +388,76 @@ Pages.myDetails = function () {
     c.appendChild(textRow('Phone number', d.phoneNumber, (i) => {
       i.value = filterPhone(i.value);
       d.phoneNumber = i.value; save();
+      smsSent = false;
+      renderSms();
     }, { type: 'tel', onblur: (i) => { i.value = groupPhone(i.value); d.phoneNumber = i.value; save(); } }));
+
+    // SMS verification — only when the backend has Twilio configured.
+    // Either channel counts: verifying this OR the email releases any
+    // submissions parked pending verification.
+    const smsHolder = el('<div></div>');
+    c.appendChild(smsHolder);
+    let smsSent = false;
+    function renderSms() {
+      d = details.load();
+      smsHolder.innerHTML = '';
+      if (!config.smsVerification || !d.phoneNumber) return;
+      if (details.phoneVerified(d)) {
+        smsHolder.appendChild(el('<div class="verify-ok">✓ Mobile verified</div>'));
+        return;
+      }
+      if (!smsSent) {
+        const b = el('<div class="verify-row"><button type="button">Verify mobile by SMS</button></div>');
+        b.querySelector('button').addEventListener('click', async () => {
+          b.querySelector('button').disabled = true;
+          try {
+            await smsCall('sendSmsVerification', {});
+            smsSent = true;
+          } catch (e) { showSmsError(e.message); }
+          renderSms();
+        });
+        smsHolder.appendChild(b);
+      } else {
+        const wrap = el('<div></div>');
+        wrap.appendChild(el(`<div class="verify-row">
+            <input type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code">
+            <button type="button" class="confirm">Confirm</button>
+            <button type="button" class="resend">Resend</button>
+          </div>`));
+        const input = wrap.querySelector('input');
+        wrap.querySelector('.confirm').addEventListener('click', async () => {
+          try {
+            await smsCall('checkSmsVerification', { otp: input.value.trim() });
+            d.verifiedPhone = d.phoneNumber; details.save(d);
+            smsSent = false;
+          } catch (e) { showSmsError(e.message); return; }
+          renderSms();
+        });
+        wrap.querySelector('.resend').addEventListener('click', async () => {
+          try { await smsCall('sendSmsVerification', {}); toast('Code re-sent.'); }
+          catch (e) { showSmsError(e.message); }
+        });
+        smsHolder.appendChild(wrap);
+      }
+    }
+    function showSmsError(msg) {
+      let e = smsHolder.querySelector('.verify-err');
+      if (!e) { e = el('<div class="verify-err"></div>'); smsHolder.appendChild(e); }
+      e.textContent = msg; e.hidden = false;
+    }
+    async function smsCall(action, extra) {
+      const u = new URL(store.backendURL);
+      u.searchParams.set('action', action);
+      u.searchParams.set('code', config.code);
+      u.searchParams.set('phone', details.load().phoneNumber);
+      u.searchParams.set('deviceId', store.deviceId);
+      Object.entries(extra).forEach(([k, v]) => u.searchParams.set(k, v));
+      const r = await fetch(u);
+      const j = await r.json();
+      if (!j.success) throw new Error(j.error || 'Verification failed — please try again.');
+      if (action === 'sendSmsVerification' && j.sent !== true) throw new Error("SMS verification isn't available yet.");
+      if (action === 'checkSmsVerification' && j.verified !== true) throw new Error("SMS verification isn't available yet.");
+    }
 
     const emailRow = textRow('Email address', d.email, (i) => {
       i.value = i.value.toLowerCase().replace(/\s+/g, '');
@@ -439,6 +530,7 @@ Pages.myDetails = function () {
       if (action === 'checkVerification' && j.verified !== true) throw new Error("Verification isn't available yet.");
     }
     renderVerify();
+    renderSms();
     body.appendChild(c);
 
     body.appendChild(sectionTitle('My Car(s)'));

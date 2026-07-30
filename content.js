@@ -84,6 +84,7 @@ Pages.myBuilding = function () {
     body.appendChild(c);
 
     c = card();
+    c.appendChild(mk('👥', 'Key Contacts', Pages.contacts));
     c.appendChild(mk('🕰', 'History', Pages.history));
     body.appendChild(c);
   });
@@ -449,5 +450,166 @@ Pages.myReportDetail = function (rep) {
       });
     }
     body.appendChild(p);
+  });
+};
+
+
+// ---------- Key Contacts ----------
+// Sheet-driven: each building lists its own strata manager, building
+// manager, committee and after-hours numbers. Empty tab = empty page.
+
+async function fetchContacts() {
+  const u = new URL(store.backendURL);
+  u.searchParams.set('action', 'contacts');
+  u.searchParams.set('code', store.config.code);
+  const r = await fetch(u);
+  const j = await r.json();
+  if (!j.success) throw new Error(j.error || 'Could not load the contacts.');
+  return j.contacts || [];
+}
+
+function contactCard(list) {
+  const c = card();
+  list.forEach((ct) => {
+    const title = ct.role || ct.name;
+    const sub = ct.role ? ct.name : '';
+    const row = el(`<div class="contact-row">
+      <div class="contact-title">${esc(title)}</div>
+      ${sub ? `<div class="contact-name">${esc(sub)}</div>` : ''}
+      ${ct.notes ? `<div class="contact-notes">${esc(ct.notes)}</div>` : ''}
+      ${ct.hours ? `<div class="contact-hours">🕘 ${esc(ct.hours)}</div>` : ''}
+    </div>`);
+    // Tap targets — the point of the page.
+    if (ct.phone) {
+      row.appendChild(el(`<a class="contact-link" href="tel:${esc(ct.phone.replace(/[^+0-9]/g, ''))}">📞 ${esc(ct.phone)}</a>`));
+    }
+    if (ct.email) {
+      row.appendChild(el(`<a class="contact-link" href="mailto:${esc(ct.email)}">✉️ ${esc(ct.email)}</a>`));
+    }
+    c.appendChild(row);
+  });
+  return c;
+}
+
+Pages.contacts = function () {
+  openPage('Key Contacts', (body) => {
+    const status = el('<div class="fhint" style="text-align:center">Loading…</div>');
+    body.appendChild(status);
+    const holder = el('<div></div>');
+    body.appendChild(holder);
+
+    fetchContacts().then((contacts) => {
+      status.remove();
+      holder.innerHTML = '';
+      if (!contacts.length) {
+        holder.appendChild(el('<div class="card"><div class="cal-empty">No contacts have been published for this building yet.</div></div>'));
+        return;
+      }
+      const urgent = contacts.filter((c) => c.emergency);
+      const everyday = contacts.filter((c) => !c.emergency);
+      if (urgent.length) {
+        holder.appendChild(sectionTitle('Urgent / After Hours'));
+        holder.appendChild(contactCard(urgent));
+        holder.appendChild(el('<div class="fhint">In a life-threatening emergency, call 000 first.</div>'));
+      }
+      if (everyday.length) {
+        holder.appendChild(sectionTitle('Your Building'));
+        holder.appendChild(contactCard(everyday));
+      }
+    }).catch(() => {
+      status.textContent = "Couldn't load the contacts just now.";
+    });
+  });
+};
+
+
+// ---------- "Not sure? Tell us what's happened" ----------
+// Keyword suggestion from the building's own Classification tab — no
+// third-party service, and the resident can always pick any form.
+
+const CLASSIFY_FORMS = [
+  { key: 'leak', label: 'Water Leak', icon: '💧', page: () => Pages.leak(), field: 'location' },
+  { key: 'damage', label: 'Common Property', icon: '🏢', page: () => Pages.damage(), field: 'damageDescription' },
+  { key: 'security', label: 'Security', icon: '🛡', page: () => Pages.security(), field: 'incidentDescription' },
+  { key: 'noise', label: 'Noise', icon: '🔊', page: () => Pages.noise(), field: 'noiseDescription' },
+  { key: 'publicProperty', label: 'Public Property', icon: '🪧', page: () => Pages.publicProperty(), field: null }
+];
+
+async function classifyText(text) {
+  try {
+    const u = new URL(store.backendURL);
+    u.searchParams.set('action', 'classify');
+    u.searchParams.set('code', store.config.code);
+    u.searchParams.set('text', text);
+    const r = await fetch(u);
+    const j = await r.json();
+    return j.success && j.suggestion ? j : null;
+  } catch { return null; }
+}
+
+function logClassification(text, suggested, chosen) {
+  try {
+    const u = new URL(store.backendURL);
+    u.searchParams.set('action', 'classifyLog');
+    u.searchParams.set('code', store.config.code);
+    u.searchParams.set('deviceId', store.deviceId);
+    u.searchParams.set('text', text);
+    u.searchParams.set('suggested', suggested || '');
+    u.searchParams.set('chosen', chosen || '');
+    fetch(u); // fire and forget
+  } catch { /* never block the resident */ }
+}
+
+Pages.generalReport = function () {
+  openPage("Tell Us What's Happened", (body) => {
+    body.appendChild(sectionTitle("What's happened?"));
+    const c = card();
+    const ta = el('<textarea placeholder="e.g. water is coming through my bedroom ceiling"></textarea>');
+    const row = el('<div class="frow"></div>');
+    row.appendChild(ta);
+    c.appendChild(row);
+    body.appendChild(c);
+    body.appendChild(el('<div class="fhint">Describe it in your own words — we\'ll suggest the right form and carry your description across.</div>'));
+
+    const results = el('<div></div>');
+    const go = el('<button class="submitbtn">Continue</button>');
+    body.appendChild(go);
+    body.appendChild(results);
+
+    function openForm(form, suggestedKey, text) {
+      logClassification(text, suggestedKey, form.key);
+      if (form.field) pendingPrefill = { field: form.field, text: text };
+      form.page();
+    }
+
+    go.addEventListener('click', async () => {
+      const text = ta.value.trim();
+      if (!text) return;
+      go.disabled = true;
+      go.textContent = 'Checking…';
+      const hit = await classifyText(text);
+      go.hidden = true;
+      results.innerHTML = '';
+
+      const suggestedKey = hit ? hit.suggestion : '';
+      if (suggestedKey) {
+        const form = CLASSIFY_FORMS.find((f) => f.key === suggestedKey);
+        results.appendChild(sectionTitle('Best match'));
+        const sc = card();
+        const b = el(`<button class="navrow"><span class="icon">${form.icon}</span>Sounds like ${esc(form.label)}<span class="chev">›</span></button>`);
+        b.addEventListener('click', () => openForm(form, suggestedKey, text));
+        sc.appendChild(b);
+        results.appendChild(sc);
+      }
+
+      results.appendChild(sectionTitle(suggestedKey ? 'Or choose another' : 'Choose a form'));
+      const oc = card();
+      CLASSIFY_FORMS.filter((f) => f.key !== suggestedKey).forEach((form) => {
+        const b = el(`<button class="navrow"><span class="icon">${form.icon}</span>${esc(form.label)}<span class="chev">›</span></button>`);
+        b.addEventListener('click', () => openForm(form, suggestedKey, text));
+        oc.appendChild(b);
+      });
+      results.appendChild(oc);
+    });
   });
 };
