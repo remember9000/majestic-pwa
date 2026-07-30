@@ -592,6 +592,41 @@ function logClassification(text, suggested, chosen) {
   } catch { /* never block the resident */ }
 }
 
+// "This might already answer it": word-overlap against the published
+// FAQ questions. Two or more significant words must hit — an irrelevant
+// FAQ is worse than none.
+const FAQ_STOPWORDS = new Set(['the','and','for','are','was','were','been',
+  'have','has','had','this','that','there','what','when','where','who',
+  'why','how','can','could','would','should','will','does','did','not',
+  'with','from','about','into','out','our','your','you','they','them',
+  'their','she','his','her','its','get','got','but','very','some','any',
+  'all','just','someone','something','anyone','anything','everyone','everything','keeps','need','want','work','going','coming','know','make','take','back','please']);
+
+function matchFaqs(text, faqs) {
+  const words = [...new Set(String(text || '').toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !FAQ_STOPWORDS.has(w)))];
+  if (!words.length) return [];
+  // Distinctive words ("tailgating") qualify on a single hit; common
+  // words ("building") still need company.
+  const questions = faqs.map((f) => f.question.toLowerCase());
+  const rarity = {};
+  words.forEach((w) => {
+    rarity[w] = questions.filter((q) => termMatches(q, w)).length;
+  });
+  return faqs
+    .map((faq) => {
+      const q = faq.question.toLowerCase();
+      const matched = words.filter((w) => termMatches(q, w));
+      const hasRare = matched.some((w) => rarity[w] > 0 && rarity[w] <= 2);
+      return { faq, score: matched.length + (hasRare ? 2 : 0), ok: matched.length >= 2 || hasRare };
+    })
+    .filter((m) => m.ok)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2)
+    .map((m) => m.faq);
+}
+
 Pages.generalReport = function () {
   openPage("Tell Us What's Happened", (body) => {
     body.appendChild(sectionTitle("What's happened?"));
@@ -606,6 +641,37 @@ Pages.generalReport = function () {
 
     const results = el('<div></div>');
     body.appendChild(results);
+    const faqHolder = el('<div></div>');
+    body.appendChild(faqHolder);
+
+    // Published FAQs, cache-first like the FAQ page itself.
+    let faqItems = [];
+    try { faqItems = JSON.parse(localStorage.getItem('faq-' + store.config.code)) || []; } catch { /* none */ }
+    backendJSON({ action: 'faq', code: store.config.code }).then((j) => {
+      faqItems = j.faq || [];
+      localStorage.setItem('faq-' + store.config.code, JSON.stringify(faqItems));
+      renderFaqs();
+    }).catch(() => { /* suggestions are a nicety */ });
+
+    function renderFaqs() {
+      const text = ta.value.trim();
+      const hits = matchFaqs(text, faqItems);
+      faqHolder.innerHTML = '';
+      if (!hits.length) return;
+      // Deliberately BELOW the forms: never deflect a real problem.
+      faqHolder.appendChild(sectionTitle('This might already answer it'));
+      const fc = card();
+      hits.forEach((faq) => {
+        const rowEl = el(`<div><button class="faq-suggest">❓ ${esc(faq.question)}</button>` +
+          `<div class="faq-answer" hidden>${esc(faq.answer)}</div></div>`);
+        rowEl.querySelector('button').addEventListener('click', () => {
+          const a = rowEl.querySelector('.faq-answer');
+          a.hidden = !a.hidden;
+        });
+        fc.appendChild(rowEl);
+      });
+      faqHolder.appendChild(fc);
+    }
 
     function openForm(form, suggestedKey, text) {
       logClassification(text, suggestedKey, form.key);
@@ -657,8 +723,9 @@ Pages.generalReport = function () {
     let timer = null;
     ta.addEventListener('input', () => {
       clearTimeout(timer);
-      timer = setTimeout(render, 250);
+      timer = setTimeout(() => { render(); renderFaqs(); }, 250);
     });
     render();
+    renderFaqs();
   });
 };
