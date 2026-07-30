@@ -255,6 +255,9 @@ function formPage(opts) {
     // "tell us what's happened" entry point and haven't typed here yet.
     if (pendingPrefill && pendingPrefill.field && !state[pendingPrefill.field]) {
       state[pendingPrefill.field] = pendingPrefill.text;
+      if (pendingPrefill.area && 'area' in state && !state.area) {
+        state.area = pendingPrefill.area;
+      }
     }
     pendingPrefill = null;
 

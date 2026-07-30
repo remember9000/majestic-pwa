@@ -550,6 +550,17 @@ function termMatches(hay, term) {
   return false;
 }
 
+// The one area named in the text, or '' when none or several match —
+// a wrongly pre-selected area can be passively accepted, an empty one
+// can't.
+function matchArea(text, areas) {
+  const hay = String(text || '').toLowerCase();
+  const hits = (areas || []).filter((option) =>
+    option.toLowerCase().split('/').map((s) => s.trim())
+      .some((part) => part && termMatches(hay, part)));
+  return hits.length === 1 ? hits[0] : '';
+}
+
 function rankForms(text) {
   const rules = (store.config && store.config.classificationRules) || [];
   const hay = String(text || '').toLowerCase();
@@ -598,7 +609,12 @@ Pages.generalReport = function () {
 
     function openForm(form, suggestedKey, text) {
       logClassification(text, suggestedKey, form.key);
-      if (form.field) pendingPrefill = { field: form.field, text: text };
+      if (form.field) {
+        pendingPrefill = { field: form.field, text: text };
+        if (form.key === 'damage' || form.key === 'security') {
+          pendingPrefill.area = matchArea(text, reportAreas());
+        }
+      }
       form.page();
     }
 
