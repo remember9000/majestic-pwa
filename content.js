@@ -538,6 +538,18 @@ const CLASSIFY_FORMS = [
 // On-device ranking against the building's own keyword rules (shipped
 // in the config). Instant, works offline, and the half-typed text never
 // leaves the phone — only a completed submission does.
+// Word-START matching, not raw substring: "leak" still matches
+// "leaking", but "loud" no longer matches "cloudy".
+function termMatches(hay, term) {
+  let at = hay.indexOf(term);
+  while (at >= 0) {
+    const before = at === 0 ? ' ' : hay.charAt(at - 1);
+    if (!/[a-z0-9]/.test(before)) return true;
+    at = hay.indexOf(term, at + 1);
+  }
+  return false;
+}
+
 function rankForms(text) {
   const rules = (store.config && store.config.classificationRules) || [];
   const hay = String(text || '').toLowerCase();
@@ -545,7 +557,7 @@ function rankForms(text) {
   const scores = {};
   rules.forEach((rule) => {
     (rule.keywords || []).forEach((term) => {
-      if (term && hay.includes(term)) {
+      if (term && termMatches(hay, term)) {
         scores[rule.suggests] = scores[rule.suggests] || { label: rule.label, score: 0 };
         scores[rule.suggests].score += Number(rule.weight) || 1;
       }

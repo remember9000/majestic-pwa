@@ -5,6 +5,14 @@
 'use strict';
 
 // ---------- date+time helpers ----------
+// Common-property areas: per-building from the config, else defaults.
+const DEFAULT_REPORT_AREAS = ['Lobby', 'Hallway / Corridor', 'Lift', 'Stairwell',
+  'Car Park', 'Garden / Grounds', 'Building Exterior', 'Other'];
+function reportAreas() {
+  const a = (store.config && store.config.reportAreas) || [];
+  return a.length ? a : DEFAULT_REPORT_AREAS;
+}
+
 const nowHM = () => {
   const d = new Date();
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
@@ -234,8 +242,7 @@ Pages.damage = () => formPage({
     body.appendChild(sectionTitle('Damage Details'));
     const c = card();
     c.appendChild(dateTimeRow('Date first noticed *', s, 'dateNoticed', 'timeNoticed'));
-    c.appendChild(selectRow('Area *', ['Lobby', 'Hallway / Corridor', 'Lift', 'Stairwell',
-      'Car Park', 'Garden / Grounds', 'Building Exterior', 'Other'],
+    c.appendChild(selectRow('Area *', reportAreas(),
       s.area, (v) => { s.area = v; refresh(); }, 'Select area…'));
     c.appendChild(textRow('Where exactly?', s.locationDetail, (i) => { s.locationDetail = i.value; },
       { placeholder: `e.g. Level 3, outside ${noun} 12` }));
@@ -299,8 +306,7 @@ Pages.security = () => formPage({
     const areaRow = el(`<div class="frow"><label>Area *</label></div>`);
     const sel = el('<select></select>');
     sel.appendChild(el('<option value="">Select area…</option>'));
-    [['My Unit', `My ${noun}`], ...['Lobby', 'Hallway / Corridor', 'Lift', 'Stairwell',
-      'Car Park', 'Garden / Grounds', 'Building Exterior', 'Other'].map((o) => [o, o])]
+    [['My Unit', `My ${noun}`], ...reportAreas().map((a) => [a, a])]
       .forEach(([value, labelText]) => {
         const opt = el(`<option value="${esc(value)}">${esc(labelText)}</option>`);
         if (value === s.area) opt.selected = true;
