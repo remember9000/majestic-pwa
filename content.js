@@ -59,6 +59,39 @@ async function backendJSON(params) {
   return j;
 }
 
+// ---------- Notices (off the home page since the tile-grid redesign;
+// reached from the status strip, mirrors NoticesPageView.swift) ----------
+Pages.notices = function () {
+  const config = store.config;
+  openPage('Notices', (body) => {
+    const holder = el('<div></div>');
+    body.appendChild(holder);
+
+    function draw(data) {
+      holder.innerHTML = '';
+      const alerts = data.alerts || [];
+      const notices = data.notices || [];
+      if (!alerts.length && !notices.length) {
+        holder.appendChild(el(`<div class="card"><div class="empty-state">
+          <div class="empty-icon">🔔</div>
+          <div class="empty-title">No notices right now</div>
+          <div class="empty-sub">Building announcements and personal updates will appear here.</div>
+        </div></div>`));
+        return;
+      }
+      renderNoticeGroup(holder, config, 'My Alerts', alerts, true);
+      renderNoticeGroup(holder, config, 'Notices', notices, false);
+    }
+
+    draw(store.cachedNotices(config.code) || {});
+    fetchNotices(config.code).then((fresh) => {
+      const blocked = fresh.deviceStatus === 'blocked';
+      store.setCachedNotices(config.code, { notices: fresh.notices, alerts: fresh.alerts || [], blocked });
+      draw({ alerts: fresh.alerts || [], notices: fresh.notices || [] });
+    }).catch(() => { /* cached view stands */ });
+  });
+};
+
 // ---------- My Majestic ----------
 const DOC_PAGES = [
   ['Rules Guide', '📖', 'buildingRules'],

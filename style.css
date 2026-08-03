@@ -119,24 +119,72 @@ button.primary:disabled { opacity: .5; }
 .notice .nbody { margin: 8px 0 2px; font-size: 15px; display: none; white-space: pre-wrap; }
 .notice.open .nbody { display: block; }
 
-/* nav buttons */
-.navbtn {
+/* status strip (opens the Notices page) */
+.strip {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
-  padding: 15px 16px;
-  margin: 12px 0;
+  padding: 14px 16px;
+  margin: 12px 0 22px;
   background: #fff;
   border: 0;
-  border-radius: 12px;
+  border-radius: 14px;
   box-shadow: 0 1px 3px rgba(0,0,0,.07);
-  font-size: 17px;
+  font-size: 15px;
   color: #1c1c1e;
   text-align: left;
+  cursor: pointer;
 }
-.navbtn .icon { color: var(--primary); font-size: 20px; width: 26px; text-align: center; }
-.navbtn .chev { margin-left: auto; color: #c7c7cc; }
+.strip-bell { color: var(--primary); display: flex; }
+.strip-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strip-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+}
+.strip .chev { color: #c7c7cc; }
+
+/* home tile grid — fixed order, checkerboard warm/cool, gently raised
+   (top-light gradient + drop shadow, mirroring the iOS tileFace) */
+.tilegrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 4px 0 14px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 122px;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1c1c1e;
+  font-family: inherit;
+  box-shadow: 0 3px 5px rgba(0,0,0,.22);
+  cursor: pointer;
+}
+.tile.warm { background: linear-gradient(#fef6f0, #FDEBE1); }
+.tile.cool { background: linear-gradient(#f2f4fa, #DFE3F2); }
+.tile .ticon { font-size: 30px; line-height: 1.1; }
+.tile .tlabel { line-height: 1.2; }
+.tile .tsubs {
+  display: flex;
+  gap: 8px;
+  font-size: 11.5px;
+  /* sub-icons read as small black glyphs, like the iOS .primary tint */
+  filter: grayscale(1) brightness(.35);
+}
 
 .card.blocked {
   padding: 14px 16px;
@@ -271,7 +319,23 @@ button.primary:disabled { opacity: .5; }
 .warnrow { padding: 11px 16px; color: #b45309; font-size: 14.5px; }
 .warnrow a { color: #b45309; font-weight: 600; }
 
-/* verify email */
+/* one-row name (Title | First | Last) with assembled preview below */
+.namerow { display: flex; align-items: center; }
+.namerow input {
+  min-width: 0; border: 0; background: none; outline: none;
+  font: 16.5px -apple-system, Roboto, Helvetica, sans-serif;
+  color: #1c1c1e; padding: 2px 10px;
+}
+.namerow input:first-child { flex: 0 0 72px; padding-left: 0; }
+.namerow input:nth-child(2) { flex: 1.2; }
+.namerow input:last-child { flex: 1; }
+.namerow input + input { border-left: 1px solid #ececf0; }
+.fpreview {
+  padding: 10px 16px; color: #8e8e93; font-size: 15.5px;
+  border-top: 1px solid #ececf0;
+}
+
+/* verify (email + SMS) */
 .verify-ok { color: #1a7f37; font-size: 14.5px; padding: 9px 16px; }
 .verify-row { display: flex; gap: 8px; padding: 9px 16px; align-items: center; }
 .verify-row input {
@@ -282,6 +346,23 @@ button.primary:disabled { opacity: .5; }
   border: 0; background: none; color: var(--primary); font-size: 15px; font-weight: 600;
 }
 .verify-err { color: #b00020; font-size: 13.5px; padding: 0 16px 9px; }
+
+/* green verification treatment, mirroring the iOS My Details */
+.contact-line { display: flex; align-items: center; gap: 8px; }
+.contact-line input { flex: 1; }
+.vbadge {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
+  color: #1a7f37; font-size: 13.5px; font-weight: 600;
+}
+.vbadge::before { content: '✓'; font-weight: 700; }
+.verify-row button.verify-cta {
+  background: rgba(52,199,89,.16); color: #1a7f37;
+  border-radius: 9px; padding: 8px 13px;
+}
+.verify-row button.confirm-green {
+  background: #34C759; color: #fff;
+  border-radius: 9px; padding: 8px 14px;
+}
 
 button.submitbtn {
   width: 100%; padding: 14px; margin-top: 14px;

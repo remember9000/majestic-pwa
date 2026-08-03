@@ -14,7 +14,7 @@ const details = {
   blank() {
     return { title: '', firstName: '', lastName: '', unitNumber: '', phoneNumber: '',
              email: '', verifiedEmail: '', verifiedPhone: '',
-             carLicenses: '', carLots: '',
+             carMakeModel: '', carLicenses: '', carLots: '',
              hasAgent: false, managingAgent: '', managementCompany: '',
              agentContact: '', agentEmail: '' };
   },
@@ -370,30 +370,73 @@ Pages.myDetails = function () {
     const noun = label(config, 'unitNoun', 'Unit');
     const save = () => details.save(d);
 
+    // One-row name (Title | First | Last) with the assembled name
+    // previewed underneath — mirrors the iOS My Details layout.
     body.appendChild(sectionTitle('Name'));
     let c = card();
-    c.appendChild(textRow('Title', d.title, (i) => { d.title = i.value; save(); },
-      { placeholder: 'e.g. Mr, Ms, Dr' }));
-    c.appendChild(textRow('First name', d.firstName, (i) => { d.firstName = i.value; save(); }));
-    c.appendChild(textRow('Last name', d.lastName, (i) => { d.lastName = i.value; save(); }));
+    const nameRow = el('<div class="frow"><div class="namerow"></div></div>');
+    const namePreview = el('<div class="fpreview" hidden></div>');
+    function updateNamePreview() {
+      const n = details.fullName(details.load()).trim();
+      namePreview.textContent = n;
+      namePreview.hidden = !n;
+    }
+    [['Title', 'title'], ['First name', 'firstName'], ['Last name', 'lastName']]
+      .forEach(([ph, key]) => {
+        const input = el(`<input type="text" placeholder="${ph}">`);
+        input.value = d[key];
+        input.addEventListener('input', () => { d[key] = input.value; save(); updateNamePreview(); });
+        nameRow.firstChild.appendChild(input);
+      });
+    c.appendChild(nameRow);
+    c.appendChild(namePreview);
+    updateNamePreview();
     body.appendChild(c);
 
+    // Unit number with the full assembled address previewed underneath
+    // (building street address comes from the sheet via config).
     body.appendChild(sectionTitle(noun + ' Number'));
     c = card();
+    const addrPreview = el('<div class="fpreview" hidden></div>');
+    function updateAddrPreview() {
+      const unit = details.load().unitNumber.trim();
+      const addr = (config.buildingAddress || '').trim();
+      if (unit && addr) {
+        addrPreview.textContent = `${noun} ${unit}, ${addr}`;
+        addrPreview.hidden = false;
+      } else {
+        addrPreview.hidden = true;
+      }
+    }
     c.appendChild(textRow('', d.unitNumber, (i) => {
       i.value = normalizeUnit(i.value);
       d.unitNumber = i.value; save();
+      updateAddrPreview();
     }, { placeholder: `${noun} number (e.g. 12 or 12A)` }));
+    c.appendChild(addrPreview);
+    updateAddrPreview();
     body.appendChild(c);
 
     body.appendChild(sectionTitle('Contact'));
     c = card();
-    c.appendChild(textRow('Phone number', d.phoneNumber, (i) => {
-      i.value = filterPhone(i.value);
-      d.phoneNumber = i.value; save();
+    // Phone row with an inline right-aligned green Verified badge.
+    const phoneRow = el('<div class="frow"><label>Phone number</label><div class="contact-line"></div></div>');
+    const phoneInput = el('<input type="tel">');
+    phoneInput.value = d.phoneNumber;
+    const phoneBadge = el('<span class="vbadge" hidden>Verified</span>');
+    phoneInput.addEventListener('input', () => {
+      phoneInput.value = filterPhone(phoneInput.value);
+      d.phoneNumber = phoneInput.value; save();
       smsSent = false;
       renderSms();
-    }, { type: 'tel', onblur: (i) => { i.value = groupPhone(i.value); d.phoneNumber = i.value; save(); } }));
+    });
+    phoneInput.addEventListener('blur', () => {
+      phoneInput.value = groupPhone(phoneInput.value);
+      d.phoneNumber = phoneInput.value; save();
+    });
+    phoneRow.querySelector('.contact-line').appendChild(phoneInput);
+    phoneRow.querySelector('.contact-line').appendChild(phoneBadge);
+    c.appendChild(phoneRow);
 
     // SMS verification — only when the backend has Twilio configured.
     // Either channel counts: verifying this OR the email releases any
@@ -404,13 +447,11 @@ Pages.myDetails = function () {
     function renderSms() {
       d = details.load();
       smsHolder.innerHTML = '';
-      if (!config.smsVerification || !d.phoneNumber) return;
-      if (details.phoneVerified(d)) {
-        smsHolder.appendChild(el('<div class="verify-ok">✓ Mobile verified</div>'));
-        return;
-      }
+      const verified = details.phoneVerified(d);
+      phoneBadge.hidden = !verified;
+      if (!config.smsVerification || !d.phoneNumber || verified) return;
       if (!smsSent) {
-        const b = el('<div class="verify-row"><button type="button">Verify mobile by SMS</button></div>');
+        const b = el('<div class="verify-row"><button type="button" class="verify-cta">✓ Verify mobile by SMS</button></div>');
         b.querySelector('button').addEventListener('click', async () => {
           b.querySelector('button').disabled = true;
           try {
@@ -424,7 +465,7 @@ Pages.myDetails = function () {
         const wrap = el('<div></div>');
         wrap.appendChild(el(`<div class="verify-row">
             <input type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code">
-            <button type="button" class="confirm">Confirm</button>
+            <button type="button" class="confirm confirm-green">Confirm</button>
             <button type="button" class="resend">Resend</button>
           </div>`));
         const input = wrap.querySelector('input');
@@ -462,11 +503,18 @@ Pages.myDetails = function () {
       if (action === 'checkSmsVerification' && j.verified !== true) throw new Error("SMS verification isn't available yet.");
     }
 
-    const emailRow = textRow('Email address', d.email, (i) => {
-      i.value = i.value.toLowerCase().replace(/\s+/g, '');
-      d.email = i.value; save();
+    // Email row with the same inline Verified badge treatment.
+    const emailRow = el('<div class="frow"><label>Email address</label><div class="contact-line"></div></div>');
+    const emailInput = el('<input type="email" autocapitalize="none" autocorrect="off">');
+    emailInput.value = d.email;
+    const emailBadge = el('<span class="vbadge" hidden>Verified</span>');
+    emailInput.addEventListener('input', () => {
+      emailInput.value = emailInput.value.toLowerCase().replace(/\s+/g, '');
+      d.email = emailInput.value; save();
       renderVerify();
-    }, { type: 'email', attrs: { autocapitalize: 'none', autocorrect: 'off' } });
+    });
+    emailRow.querySelector('.contact-line').appendChild(emailInput);
+    emailRow.querySelector('.contact-line').appendChild(emailBadge);
     c.appendChild(emailRow);
 
     const verifyHolder = el('<div></div>');
@@ -475,13 +523,11 @@ Pages.myDetails = function () {
     function renderVerify() {
       d = details.load();
       verifyHolder.innerHTML = '';
-      if (details.emailVerified(d)) {
-        verifyHolder.appendChild(el('<div class="verify-ok">✓ Email verified</div>'));
-        return;
-      }
-      if (!emailValid(d.email)) return;
+      const verified = details.emailVerified(d);
+      emailBadge.hidden = !verified;
+      if (verified || !emailValid(d.email)) return;
       if (!codeSent) {
-        const b = el('<div class="verify-row"><button type="button">Verify email address</button></div>');
+        const b = el('<div class="verify-row"><button type="button" class="verify-cta">✓ Verify email address</button></div>');
         b.querySelector('button').addEventListener('click', async () => {
           b.querySelector('button').disabled = true;
           try {
@@ -494,7 +540,7 @@ Pages.myDetails = function () {
       } else {
         const row = el(`<div class="verify-row">
             <input type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code">
-            <button type="button" class="confirm">Confirm</button>
+            <button type="button" class="confirm confirm-green">Confirm</button>
             <button type="button" class="resend">Resend</button>
           </div><div class="verify-err" hidden></div>`);
         const wrap = el('<div></div>'); wrap.appendChild(row);
@@ -536,8 +582,10 @@ Pages.myDetails = function () {
     renderSms();
     body.appendChild(c);
 
-    body.appendChild(sectionTitle('My Car(s)'));
+    body.appendChild(sectionTitle('My Vehicle(s)'));
     c = card();
+    c.appendChild(textRow('Make / model', d.carMakeModel, (i) => { d.carMakeModel = i.value; save(); },
+      { placeholder: 'e.g. Toyota Corolla, white' }));
     c.appendChild(textRow('License number(s)', d.carLicenses, (i) => {
       i.value = i.value.toUpperCase();
       d.carLicenses = i.value; save();

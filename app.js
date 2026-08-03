@@ -120,6 +120,9 @@ function maybeShowWelcome() {
     'Your ' + (config.appName || '') + ' app is packed with features that let you send and receive information relevant to your home and building.\n\nEnjoy!');
 }
 
+// In-memory home state: strip counts survive re-renders without flicker.
+const homeState = { unread: 0, openReports: null, blocked: false };
+
 function renderHome() {
   const config = store.config;
   if (!config) { show('onboarding'); return; }
@@ -136,27 +139,69 @@ function renderHome() {
     photo.hidden = true;
   }
 
-  renderNavButtons(config, false);
+  renderStrip(config);
+  renderTiles(config, homeState.blocked);
   renderLegal(config);
   loadNotices(config);
+  // content.js (fetchMyReports) parses after app.js — defer past it.
+  setTimeout(() => loadOpenReports(config), 0);
   maybeShowWelcome();
 }
 
-function renderNavButtons(config, blocked) {
+// Bell outline that takes the brand colour (emoji bells are yellow).
+const BELL_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" ' +
+  'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
+
+// Status strip: most residents open the app to check something — open
+// reports and unread notices lead, and tapping opens the Notices page.
+function renderStrip(config) {
+  const parts = [];
+  if (homeState.openReports > 0) {
+    parts.push(homeState.openReports + ' open report' + (homeState.openReports === 1 ? '' : 's'));
+  }
+  if (homeState.unread > 0) {
+    parts.push(homeState.unread + ' new notice' + (homeState.unread === 1 ? '' : 's'));
+  }
+  const text = parts.length ? parts.join(' · ') : "Notices — you're all caught up";
+  const holder = $('statusStrip');
+  holder.innerHTML =
+    `<button class="strip">
+       <span class="strip-bell">${BELL_SVG}</span>
+       <span class="strip-text">${esc(text)}</span>
+       ${homeState.unread > 0 ? `<span class="strip-badge">${homeState.unread}</span>` : ''}
+       <span class="chev">›</span>
+     </button>`;
+  holder.querySelector('.strip').addEventListener('click', () => Pages.notices());
+}
+
+// Fixed-order two-up tile grid, mirroring HomeView.swift: order never
+// changes (people learn position), colours checkerboard warm/cool with
+// no semantics. Sub-icons preview what's inside each tile.
+function renderTiles(config, blocked) {
   const holder = $('navButtons');
-  const btns = [
-    ['👤', label(config, 'myDetails', 'My Details'), () => Pages.myDetails()],
-    ['🏛', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), () => Pages.myBuilding()],
-    ...(blocked ? [] : [['🗣', label(config, 'letUsKnow', 'Let Us Know'), () => Pages.letUsKnow()]]),
-    ['📋', label(config, 'myReports', 'My Reports'), () => Pages.myReports()],
-    ['❓', label(config, 'faq', 'Frequently Asked Questions'), () => Pages.faq()]
-  ];
-  holder.innerHTML = btns.map(([icon, title], i) =>
-    `<button class="navbtn" data-i="${i}">
-       <span class="icon">${icon}</span>${esc(title)}<span class="chev">›</span>
-     </button>`).join('');
-  holder.querySelectorAll('.navbtn').forEach((b, i) => {
-    b.addEventListener('click', btns[i][2]);
+  const tiles = [
+    ['letUsKnow', '👋', label(config, 'letUsKnow', 'Let Us Know'), true, 'warm',
+     ['📷', '📝', '🛠', '🔨'], () => Pages.letUsKnow()],
+    ['myDetails', '👤', label(config, 'myDetails', 'My Details'), false, 'cool',
+     ['📞', '✉️', '🚗'], () => Pages.myDetails()],
+    ['myReports', '📋', label(config, 'myReports', 'My Reports'), false, 'cool',
+     ['🕐', '✔️'], () => Pages.myReports()],
+    ['myBuilding', '🏢', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), false, 'warm',
+     ['🏠', '📖', '🗺', '🔄'], () => Pages.myBuilding()],
+    ['faq', '❓', label(config, 'faq', 'FAQs'), false, 'warm',
+     ['🔍', '💬'], () => Pages.faq()],
+    ['contacts', '👥', 'Key Contacts', false, 'cool',
+     ['📞', '✉️'], () => Pages.contacts()]
+  ].filter(([, , , blockedHidden]) => !(blockedHidden && blocked));
+  holder.innerHTML = '<div class="tilegrid">' + tiles.map(([key, icon, title, , tone, subs], i) =>
+    `<button class="tile ${tone}" data-i="${i}">
+       <span class="ticon">${icon}</span>
+       <span class="tlabel">${esc(title)}</span>
+       <span class="tsubs">${subs.map((s) => `<span>${s}</span>`).join('')}</span>
+     </button>`).join('') + '</div>';
+  holder.querySelectorAll('.tile').forEach((b, i) => {
+    b.addEventListener('click', tiles[i][6]);
   });
   $('blockedBanner').hidden = !blocked;
 }
@@ -183,14 +228,14 @@ function renderLegal(config) {
 
 function noticeKey(n) { return (n.date || '') + '|' + (n.title || ''); }
 
-function renderNoticeList(config, holderId, heading, items, isAlert) {
-  const holder = $(holderId);
-  if (!items || !items.length) { holder.innerHTML = ''; return; }
+// Renders one heading + card of expandable notice rows into a container
+// element (used by the Notices page; the home strip only counts them).
+function renderNoticeGroup(container, config, heading, items, isAlert) {
+  if (!items || !items.length) return;
   const read = store.readKeys(config.code);
-  const unread = items.filter((n) => !read.has(noticeKey(n))).length;
-  const title = unread > 0 ? `${heading} — ${unread} new` : heading;
+  const holder = document.createElement('div');
   holder.innerHTML =
-    `<div class="section-title">${esc(title)}</div><div class="card">` +
+    `<div class="section-title">${esc(heading)}</div><div class="card">` +
     items.map((n, i) => {
       const isRead = read.has(noticeKey(n));
       return `<div class="notice ${n.priority === 'High' ? 'high' : ''}" data-i="${i}">
@@ -212,24 +257,43 @@ function renderNoticeList(config, holderId, heading, items, isAlert) {
       }
     });
   });
+  container.appendChild(holder);
+}
+
+function unreadIn(config, data) {
+  const read = store.readKeys(config.code);
+  return [...(data.alerts || []), ...(data.notices || [])]
+    .filter((n) => !read.has(noticeKey(n))).length;
 }
 
 async function loadNotices(config) {
   // cached first (instant/offline), then fresh — mirrors NoticesStore
   const cached = store.cachedNotices(config.code);
   if (cached) {
-    renderNoticeList(config, 'alertsSection', 'My Alerts', cached.alerts, true);
-    renderNoticeList(config, 'noticesSection', 'Notices', cached.notices, false);
-    renderNavButtons(config, !!cached.blocked);
+    homeState.blocked = !!cached.blocked;
+    homeState.unread = unreadIn(config, cached);
+    renderStrip(config);
+    renderTiles(config, homeState.blocked);
   }
   try {
     const fresh = await fetchNotices(config.code);
     const blocked = fresh.deviceStatus === 'blocked';
     store.setCachedNotices(config.code, { notices: fresh.notices, alerts: fresh.alerts || [], blocked });
-    renderNoticeList(config, 'alertsSection', 'My Alerts', fresh.alerts || [], true);
-    renderNoticeList(config, 'noticesSection', 'Notices', fresh.notices || [], false);
-    renderNavButtons(config, blocked);
+    homeState.blocked = blocked;
+    homeState.unread = unreadIn(config, fresh);
+    renderStrip(config);
+    renderTiles(config, blocked);
   } catch { /* keep cache */ }
+}
+
+// Open (not closed) submissions for the strip, mirroring refreshOpenReports.
+async function loadOpenReports(config) {
+  if (typeof fetchMyReports !== 'function') return;
+  try {
+    const reports = await fetchMyReports();
+    homeState.openReports = reports.filter((r) => !r.isClosed).length;
+    renderStrip(config);
+  } catch { /* strip just omits the count */ }
 }
 
 // ---------- PWA: service worker + install prompt ----------
