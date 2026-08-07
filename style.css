@@ -177,6 +177,7 @@ button.primary:disabled { opacity: .5; }
 .tile.warm { background: linear-gradient(#fef6f0, #FDEBE1); }
 .tile.cool { background: linear-gradient(#f2f4fa, #DFE3F2); }
 .tile .ticon { font-size: 30px; line-height: 1.1; }
+.tile .ticon svg { width: 28px; height: 34px; display: block; margin: 0 auto; }
 .tile .tlabel { line-height: 1.2; }
 .tile .tsubs {
   display: flex;

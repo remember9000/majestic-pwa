@@ -175,6 +175,23 @@ function renderStrip(config) {
   holder.querySelector('.strip').addEventListener('click', () => Pages.notices());
 }
 
+// My Reports tile icon: navy clipboard with the Let Us Know wave —
+// solid coral — on its paper ("your submitted waves, on file").
+// Custom SVG because no emoji composes the two; mirrors the iOS
+// clipboard+hand.wave.fill symbol stack.
+const REPORTS_ICON_SVG =
+  '<svg viewBox="0 0 40 48" aria-hidden="true">' +
+  '<rect x="5.5" y="7" width="29" height="37" rx="6" fill="none" stroke="var(--primary)" stroke-width="3.2"/>' +
+  '<rect x="14" y="3" width="12" height="8" rx="3" fill="var(--primary)"/>' +
+  '<g fill="#EC7357" transform="rotate(-12 20 27)">' +
+  '<rect x="12.2" y="16.5" width="3.4" height="10" rx="1.7"/>' +
+  '<rect x="16.1" y="14.8" width="3.4" height="11.5" rx="1.7"/>' +
+  '<rect x="20" y="15.3" width="3.4" height="11" rx="1.7"/>' +
+  '<rect x="23.9" y="17" width="3.4" height="9.5" rx="1.7"/>' +
+  '<rect x="12.2" y="23" width="15.1" height="10.5" rx="5"/>' +
+  '<ellipse cx="10.8" cy="28" rx="2.3" ry="4" transform="rotate(30 10.8 28)"/>' +
+  '</g></svg>';
+
 // Fixed-order two-up tile grid, mirroring HomeView.swift: order never
 // changes (people learn position), colours checkerboard warm/cool with
 // no semantics. Sub-icons preview what's inside each tile.
@@ -185,7 +202,7 @@ function renderTiles(config, blocked) {
      ['📷', '📝', '🛠', '🔨'], () => Pages.letUsKnow()],
     ['myDetails', '👤', label(config, 'myDetails', 'My Details'), false, 'cool',
      ['📞', '✉️', '🚗'], () => Pages.myDetails()],
-    ['myReports', '📋', label(config, 'myReports', 'My Reports'), false, 'cool',
+    ['myReports', REPORTS_ICON_SVG, label(config, 'myReports', 'My Reports'), false, 'cool',
      ['🕐', '✔️'], () => Pages.myReports()],
     ['myBuilding', '🏢', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), false, 'warm',
      ['🏠', '📖', '🗺', '🔄'], () => Pages.myBuilding()],
