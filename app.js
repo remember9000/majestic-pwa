@@ -53,10 +53,19 @@ async function fetchConfig(code) {
   u.searchParams.set('model', 'Web (' + (navigator.platform || 'browser') + ')');
   u.searchParams.set('os', navigator.userAgent.slice(0, 80));
   u.searchParams.set('appVersion', APP_VERSION);
+  // Tell the backend which logo we already hold; a matching version comes
+  // back without the ~240 KB image, and we carry the cached bytes over.
+  const cached = store.config;
+  u.searchParams.set('logoVersion', (cached && cached.code === code && cached.logoVersion) || '');
   const r = await fetch(u);
   const j = await r.json();
   if (!j.success || !j.config) throw new Error(j.error || 'Could not load configuration.');
-  return j.config;
+  const fresh = j.config;
+  if (!fresh.logoBase64 && fresh.logoVersion && cached &&
+      cached.code === code && cached.logoVersion === fresh.logoVersion) {
+    fresh.logoBase64 = cached.logoBase64;
+  }
+  return fresh;
 }
 
 async function fetchNotices(code) {
