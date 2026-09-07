@@ -184,21 +184,17 @@ function renderStrip(config) {
   holder.querySelector('.strip').addEventListener('click', () => Pages.notices());
 }
 
-// My Reports tile icon: navy clipboard with the Let Us Know wave —
-// solid coral — on its paper ("your submitted waves, on file").
+// My Reports tile icon: navy clipboard with the Let Us Know speech
+// bubble — coral outline — on its paper ("what you told us, on file").
 // Custom SVG because no emoji composes the two; mirrors the iOS
-// clipboard+hand.wave.fill symbol stack.
+// clipboard+text.bubble symbol stack.
 const REPORTS_ICON_SVG =
   '<svg viewBox="0 0 40 48" aria-hidden="true">' +
   '<rect x="5.5" y="7" width="29" height="37" rx="6" fill="none" stroke="var(--primary)" stroke-width="3.2"/>' +
   '<rect x="14" y="3" width="12" height="8" rx="3" fill="var(--primary)"/>' +
-  '<g fill="#EC7357" transform="rotate(-12 20 27)">' +
-  '<rect x="12.2" y="16.5" width="3.4" height="10" rx="1.7"/>' +
-  '<rect x="16.1" y="14.8" width="3.4" height="11.5" rx="1.7"/>' +
-  '<rect x="20" y="15.3" width="3.4" height="11" rx="1.7"/>' +
-  '<rect x="23.9" y="17" width="3.4" height="9.5" rx="1.7"/>' +
-  '<rect x="12.2" y="23" width="15.1" height="10.5" rx="5"/>' +
-  '<ellipse cx="10.8" cy="28" rx="2.3" ry="4" transform="rotate(30 10.8 28)"/>' +
+  '<g fill="none" stroke="#EC7357" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M14 18.5h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-7l-5 4.5v-4.5a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3z"/>' +
+  '<path d="M15.5 23h9M15.5 27h6"/>' +
   '</g></svg>';
 
 // Fixed-order two-up tile grid, mirroring HomeView.swift: order never
@@ -207,7 +203,7 @@ const REPORTS_ICON_SVG =
 function renderTiles(config, blocked) {
   const holder = $('navButtons');
   const tiles = [
-    ['letUsKnow', '👋', label(config, 'letUsKnow', 'Let Us Know'), true, 'warm',
+    ['letUsKnow', '💬', label(config, 'letUsKnow', 'Let Us Know'), true, 'warm',
      ['📷', '📝', '🛠', '🔨'], () => Pages.letUsKnow()],
     ['myDetails', '👤', label(config, 'myDetails', 'My Details'), false, 'cool',
      ['📞', '✉️', '🚗'], () => Pages.myDetails()],
