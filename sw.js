@@ -6,16 +6,16 @@
 
 'use strict';
 
-const VERSION = 'v31';
+const VERSION = 'v32';
 const CACHE = 'majestic-shell-' + VERSION;
 
 const SHELL = [
   './index.html',
-  './style.css?v=31',
-  './app.js?v=31',
-  './pages.js?v=31',
-  './reports.js?v=31',
-  './content.js?v=31',
+  './style.css?v=32',
+  './app.js?v=32',
+  './pages.js?v=32',
+  './reports.js?v=32',
+  './content.js?v=32',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
