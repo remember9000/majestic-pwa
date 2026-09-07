@@ -174,9 +174,11 @@ function renderStrip(config) {
   }
   const text = parts.length ? parts.join(' · ') : "Notices — you're all caught up";
   const holder = $('statusStrip');
+  // Red bell only when something needs attention (unread High-priority
+  // notice or unread personal alert); the count badge is always red.
   holder.innerHTML =
     `<button class="strip">
-       <span class="strip-bell">${BELL_SVG}</span>
+       <span class="strip-bell${homeState.attention ? ' attention' : ''}">${BELL_SVG}</span>
        <span class="strip-text">${esc(text)}</span>
        ${homeState.unread > 0 ? `<span class="strip-badge">${homeState.unread}</span>` : ''}
        <span class="chev">›</span>
@@ -184,18 +186,31 @@ function renderStrip(config) {
   holder.querySelector('.strip').addEventListener('click', () => Pages.notices());
 }
 
-// My Reports tile icon: navy clipboard with the Let Us Know speech
-// bubble — coral outline — on its paper ("what you told us, on file").
-// Custom SVG because no emoji composes the two; mirrors the iOS
-// clipboard+text.bubble symbol stack.
+// Tile icons drawn as SVG where no emoji matches the iOS SF Symbol.
+// Updates: two overlapping speech bubbles (bubble.left.and.bubble.right)
+// — the reply to Let Us Know's single bubble. Navy outline; the front
+// bubble is filled with the tile tone so it knocks out the back one.
 const REPORTS_ICON_SVG =
-  '<svg viewBox="0 0 40 48" aria-hidden="true">' +
-  '<rect x="5.5" y="7" width="29" height="37" rx="6" fill="none" stroke="var(--primary)" stroke-width="3.2"/>' +
-  '<rect x="14" y="3" width="12" height="8" rx="3" fill="var(--primary)"/>' +
-  '<g fill="none" stroke="#EC7357" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M14 18.5h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-7l-5 4.5v-4.5a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3z"/>' +
-  '<path d="M15.5 23h9M15.5 27h6"/>' +
+  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
+  '<g fill="none" stroke="var(--primary)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M9 6h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H15l-6 5v-5a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
+  '<path fill="#e8ebf5" d="M23 14h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4v5l-6-5H23a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
   '</g></svg>';
+// My Details: person in a rounded rectangle (person.crop.rectangle), navy.
+const DETAILS_ICON_SVG =
+  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
+  '<g fill="none" stroke="var(--primary)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+  '<rect x="4" y="4" width="40" height="32" rx="6"/>' +
+  '<circle cx="24" cy="16" r="5.5" fill="var(--primary)"/>' +
+  '<path fill="var(--primary)" d="M12 36c1.5-7 6.5-10.5 12-10.5S34.5 29 36 36z"/>' +
+  '</g></svg>';
+// FAQs: folder with a question mark (questionmark.folder), coral.
+const FAQ_ICON_SVG =
+  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
+  '<g fill="none" stroke="#EC7357" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M4 10a3 3 0 0 1 3-3h11l4 4h19a3 3 0 0 1 3 3v19a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z"/>' +
+  '<path d="M20.5 19.5a4 4 0 1 1 5.5 3.7c-1.2.5-2 1.4-2 2.8"/>' +
+  '</g><circle cx="24" cy="30.5" r="1.6" fill="#EC7357"/></svg>';
 
 // Fixed-order two-up tile grid, mirroring HomeView.swift: order never
 // changes (people learn position), colours checkerboard warm/cool with
@@ -205,13 +220,13 @@ function renderTiles(config, blocked) {
   const tiles = [
     ['letUsKnow', '💬', label(config, 'letUsKnow', 'Let Us Know'), true, 'warm',
      ['📷', '📝', '🛠', '🔨'], () => Pages.letUsKnow()],
-    ['myDetails', '👤', label(config, 'myDetails', 'My Details'), false, 'cool',
+    ['myDetails', DETAILS_ICON_SVG, label(config, 'myDetails', 'My Details'), false, 'cool',
      ['📞', '✉️', '🚗'], () => Pages.myDetails()],
-    ['myReports', REPORTS_ICON_SVG, label(config, 'myReports', 'My Reports'), false, 'cool',
+    ['myReports', REPORTS_ICON_SVG, label(config, 'myReports', 'Updates'), false, 'cool',
      ['🕐', '✔️'], () => Pages.myReports()],
     ['myBuilding', '🏢', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), false, 'warm',
      ['🏠', '📖', '🗺', '🔄'], () => Pages.myBuilding()],
-    ['faq', '❓', label(config, 'faq', 'FAQs'), false, 'warm',
+    ['faq', FAQ_ICON_SVG, label(config, 'faq', 'FAQs'), false, 'warm',
      ['🔍', '💬'], () => Pages.faq()],
     ['contacts', '👥', 'Key Contacts', false, 'cool',
      ['📞', '✉️'], () => Pages.contacts()]
@@ -288,12 +303,20 @@ function unreadIn(config, data) {
     .filter((n) => !read.has(noticeKey(n))).length;
 }
 
+// Unread High-priority notice, or an unread personal alert.
+function attentionIn(config, data) {
+  const read = store.readKeys(config.code);
+  return (data.alerts || []).some((a) => !read.has(noticeKey(a))) ||
+    (data.notices || []).some((n) => n.priority === 'High' && !read.has(noticeKey(n)));
+}
+
 async function loadNotices(config) {
   // cached first (instant/offline), then fresh — mirrors NoticesStore
   const cached = store.cachedNotices(config.code);
   if (cached) {
     homeState.blocked = !!cached.blocked;
     homeState.unread = unreadIn(config, cached);
+    homeState.attention = attentionIn(config, cached);
     renderStrip(config);
     renderTiles(config, homeState.blocked);
   }
@@ -303,6 +326,7 @@ async function loadNotices(config) {
     store.setCachedNotices(config.code, { notices: fresh.notices, alerts: fresh.alerts || [], blocked });
     homeState.blocked = blocked;
     homeState.unread = unreadIn(config, fresh);
+    homeState.attention = attentionIn(config, fresh);
     renderStrip(config);
     renderTiles(config, blocked);
   } catch { /* keep cache */ }

@@ -406,7 +406,7 @@ function statusPill(rep) {
 }
 
 Pages.myReports = function () {
-  openPage(label(store.config, 'myReports', 'My Reports'), (body) => {
+  openPage(label(store.config, 'myReports', 'Updates'), (body) => {
     const status = el('<div class="fhint" style="text-align:center">Loading…</div>');
     body.appendChild(status);
     const holder = el('<div></div>');
