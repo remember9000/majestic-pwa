@@ -226,6 +226,31 @@ function renderStrip(config) {
   }));
 }
 
+// Tile icons drawn as SVG where no emoji matches the iOS SF Symbol.
+// They use currentColor so the tile tone (.tile.warm/.cool .ticon) tints them.
+// Updates: two overlapping speech bubbles (bubble.left.and.bubble.right).
+const REPORTS_ICON_SVG =
+  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
+  '<g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M9 6h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H15l-6 5v-5a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
+  '<path fill="#e8ebf5" d="M23 14h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4v5l-6-5H23a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
+  '</g></svg>';
+// My Details: person in a rounded rectangle (person.crop.rectangle).
+const DETAILS_ICON_SVG =
+  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
+  '<g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+  '<rect x="4" y="4" width="40" height="32" rx="6"/>' +
+  '<circle cx="24" cy="16" r="5.5" fill="currentColor"/>' +
+  '<path fill="currentColor" d="M12 36c1.5-7 6.5-10.5 12-10.5S34.5 29 36 36z"/>' +
+  '</g></svg>';
+// FAQs: folder with a question mark (questionmark.folder).
+const FAQ_ICON_SVG =
+  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
+  '<g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M4 10a3 3 0 0 1 3-3h11l4 4h19a3 3 0 0 1 3 3v19a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z"/>' +
+  '<path d="M20.5 19.5a4 4 0 1 1 5.5 3.7c-1.2.5-2 1.4-2 2.8"/>' +
+  '</g><circle cx="24" cy="30.5" r="1.6" fill="currentColor"/></svg>';
+
 // Fixed-order two-up tile grid, mirroring HomeView.swift: order never
 // changes (people learn position), colours checkerboard warm/cool with
 // no semantics. Sub-icons preview what's inside each tile.
