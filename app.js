@@ -185,69 +185,46 @@ const BELL_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" ' 
 
 // Status strip: most residents open the app to check something — open
 // reports and unread notices lead, and tapping opens the Notices page.
-// Honest and content-aware, mirroring HomeView.stripText: never "all
-// caught up" before a result exists; name the thing that matters most.
-function stripText() {
-  if (!homeState.hasResult) {
-    return homeState.phase === 'failed'
-      ? "Couldn't check for notices — tap to retry"
-      : 'Checking for notices…';
-  }
+const MEGAPHONE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" ' +
+  'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M3 11v2a2 2 0 0 0 2 2h2l6 4V5L7 9H5a2 2 0 0 0-2 2z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>';
+const BELL_SMALL_SVG = BELL_SVG.replace('width="18" height="18"', 'width="14" height="14"');
+
+// Two pills that sit like column headings over the tile grid — Notices
+// centred over the left column, Updates over the right (above the
+// Updates tile). Fixed height, so the grid never moves. Mirrors
+// HomeView.strip / noticesPillText / updatesPillText.
+function noticesPillText() {
+  if (!homeState.hasResult) return homeState.phase === 'failed' ? 'Tap to retry' : 'Checking…';
   if (homeState.urgentTitle) return 'Important: ' + homeState.urgentTitle;
-  const parts = [];
-  const notices = homeState.unread - homeState.alertCount;
-  if (homeState.alertCount > 0) {
-    parts.push(homeState.alertCount === 1 ? 'Update on your report'
-                                          : homeState.alertCount + ' updates on your reports');
-  }
-  if (notices > 0) parts.push(notices + ' new notice' + (notices === 1 ? '' : 's'));
-  return parts.length ? parts.join(' · ') : "Notices — you're all caught up";
+  const n = homeState.unread - homeState.alertCount;
+  return n === 0 ? 'No notices' : n + ' notice' + (n === 1 ? '' : 's');
+}
+function updatesPillText() {
+  if (!homeState.hasResult) return homeState.phase === 'failed' ? "Couldn't check" : 'Checking…';
+  const n = homeState.alertCount;
+  return n === 0 ? 'No updates' : n + ' update' + (n === 1 ? '' : 's');
 }
 
 function renderStrip(config) {
-  const text = stripText();
+  const urgent = !!homeState.urgentTitle;
+  const noticesActive = homeState.hasResult && (urgent || homeState.unread - homeState.alertCount > 0);
+  const updatesActive = homeState.hasResult && homeState.alertCount > 0;
+  const nText = noticesPillText(), uText = updatesPillText();
   const holder = $('statusStrip');
-  // Red bell only when something needs attention (unread High-priority
-  // notice or unread personal alert); the count badge is always red.
   holder.innerHTML =
-    `<button class="strip" aria-label="${esc(text)}. Opens notices.">
-       <span class="strip-bell${homeState.attention ? ' attention' : ''}" aria-hidden="true">${BELL_SVG}</span>
-       <span class="strip-text">${esc(text)}</span>
-       ${homeState.unread > 0 ? `<span class="strip-badge" aria-hidden="true">${homeState.unread}</span>` : ''}
-       <span class="chev" aria-hidden="true">›</span>
-     </button>`;
-  holder.querySelector('.strip').addEventListener('click', () => {
+    `<div class="pillrow">
+       <button class="colpill${noticesActive ? (urgent ? ' red' : ' navy') : ''}" aria-label="${esc(nText)}. Building notices. Opens notices.">
+         <span aria-hidden="true">${MEGAPHONE_SVG}</span>${esc(nText)}</button>
+       <button class="colpill${updatesActive ? ' red' : ''}" aria-label="${esc(uText)}. Updates on your reports. Opens notices.">
+         <span aria-hidden="true">${BELL_SMALL_SVG}</span>${esc(uText)}</button>
+     </div>`;
+  holder.querySelectorAll('.colpill').forEach((b) => b.addEventListener('click', () => {
     // A failed check retries in place; otherwise open the Notices page.
     if (!homeState.hasResult && homeState.phase === 'failed') { loadNotices(config); return; }
     Pages.notices();
-  });
+  }));
 }
-
-// Tile icons drawn as SVG where no emoji matches the iOS SF Symbol.
-// Updates: two overlapping speech bubbles (bubble.left.and.bubble.right)
-// — the reply to Let Us Know's single bubble. Navy outline; the front
-// bubble is filled with the tile tone so it knocks out the back one.
-const REPORTS_ICON_SVG =
-  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
-  '<g fill="none" stroke="var(--primary)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M9 6h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H15l-6 5v-5a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
-  '<path fill="#e8ebf5" d="M23 14h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4v5l-6-5H23a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
-  '</g></svg>';
-// My Details: person in a rounded rectangle (person.crop.rectangle), navy.
-const DETAILS_ICON_SVG =
-  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
-  '<g fill="none" stroke="var(--primary)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
-  '<rect x="4" y="4" width="40" height="32" rx="6"/>' +
-  '<circle cx="24" cy="16" r="5.5" fill="var(--primary)"/>' +
-  '<path fill="var(--primary)" d="M12 36c1.5-7 6.5-10.5 12-10.5S34.5 29 36 36z"/>' +
-  '</g></svg>';
-// FAQs: folder with a question mark (questionmark.folder), coral.
-const FAQ_ICON_SVG =
-  '<svg viewBox="0 0 48 40" aria-hidden="true">' +
-  '<g fill="none" stroke="#EC7357" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M4 10a3 3 0 0 1 3-3h11l4 4h19a3 3 0 0 1 3 3v19a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z"/>' +
-  '<path d="M20.5 19.5a4 4 0 1 1 5.5 3.7c-1.2.5-2 1.4-2 2.8"/>' +
-  '</g><circle cx="24" cy="30.5" r="1.6" fill="#EC7357"/></svg>';
 
 // Fixed-order two-up tile grid, mirroring HomeView.swift: order never
 // changes (people learn position), colours checkerboard warm/cool with
@@ -255,16 +232,19 @@ const FAQ_ICON_SVG =
 function renderTiles(config, blocked) {
   const holder = $('navButtons');
   const tiles = [
+    // Order (2026-09-09): Let Us Know | Updates, My Majestic | FAQs,
+    // My Details | Key Contacts. Checkerboard follows position (warm at
+    // 1, 4, 5) — mirrors HomeView.swift.
     ['letUsKnow', '💬', label(config, 'letUsKnow', 'Let Us Know'), true, 'warm',
      ['📷', '📝', '🛠', '🔨'], () => Pages.letUsKnow()],
-    ['myDetails', DETAILS_ICON_SVG, label(config, 'myDetails', 'My Details'), false, 'cool',
-     ['📞', '✉️', '🚗'], () => Pages.myDetails()],
     ['myReports', REPORTS_ICON_SVG, label(config, 'myReports', 'Updates'), false, 'cool',
      ['🕐', '✔️'], () => Pages.myReports()],
-    ['myBuilding', '🏢', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), false, 'warm',
+    ['myBuilding', '🏢', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), false, 'cool',
      ['🏠', '📖', '🗺', '🔄'], () => Pages.myBuilding()],
     ['faq', FAQ_ICON_SVG, label(config, 'faq', 'FAQs'), false, 'warm',
      ['🔍', '💬'], () => Pages.faq()],
+    ['myDetails', DETAILS_ICON_SVG, label(config, 'myDetails', 'My Details'), false, 'warm',
+     ['📞', '✉️', '🚗'], () => Pages.myDetails()],
     ['contacts', '👥', 'Key Contacts', false, 'cool',
      ['📞', '✉️'], () => Pages.contacts()]
   ].filter(([, , , blockedHidden]) => !(blockedHidden && blocked));

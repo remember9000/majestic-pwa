@@ -139,6 +139,11 @@ button.primary:disabled { opacity: .5; }
 .strip-bell { color: var(--primary); display: flex; }
 .strip-bell.attention { color: #ff3b30; }   /* iOS system red: high-priority / personal alert */
 .strip-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strip-pills { flex: 1; display: flex; gap: 6px; overflow: hidden; white-space: nowrap; }
+.strip-pill { font-size: 13px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: rgba(0,33,71,.14); color: var(--primary); }
+.strip-pill.filled { background: #ff3b30; color: #fff; }
+.strip { min-height: 54px; }
 .strip-badge {
   flex-shrink: 0;
   font-size: 12px;
@@ -185,6 +190,8 @@ button.primary:disabled { opacity: .5; }
 }
 .tile .ticon { font-size: 30px; line-height: 1.1; }
 .tile .ticon svg { width: 36px; height: 30px; display: block; margin: 0 auto; }
+.tile.cool .ticon { color: var(--primary); }
+.tile.warm .ticon { color: #EC7357; }   /* SVG icons take the tile's tone via currentColor */
 .tile .tlabel { line-height: 1.2; }
 .tile .tsubs {
   display: flex;
@@ -565,3 +572,12 @@ div:first-child > .faq-suggest { border-top: none; }
 /* alert → report link */
 .alert-report { display: block; margin-top: 8px; background: none; border: 0; padding: 4px 0;
   color: var(--primary); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; }
+
+/* column-heading pills over the tile grid (Notices left, Updates right) */
+.pillrow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 14px; }
+.colpill { justify-self: center; max-width: 100%; display: inline-flex; align-items: center; gap: 5px;
+  border: 0; border-radius: 999px; padding: 5px 11px; font-size: 13px; font-weight: 600;
+  background: #e5e5ea; color: #6e6e73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; font-family: inherit; }
+.colpill.navy { background: var(--primary); color: #fff; }
+.colpill.red { background: #ff3b30; color: #fff; }

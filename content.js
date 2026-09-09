@@ -131,8 +131,7 @@ Pages.myBuilding = function () {
     body.appendChild(c);
 
     c = card();
-    c.appendChild(mk('👥', 'Key Contacts', Pages.contacts));
-    c.appendChild(mk('🕰', 'History', Pages.history));
+    c.appendChild(mk('🕰', 'History', Pages.history));   // Key Contacts is a home tile now
     body.appendChild(c);
   });
 };
