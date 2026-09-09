@@ -406,21 +406,24 @@ function statusPill(rep) {
 }
 
 Pages.myReports = function () {
-  openPage(label(store.config, 'myReports', 'Updates'), (body) => {
+  const config = store.config;
+  const cacheKey = 'reports-' + config.code;
+  openPage(label(config, 'myReports', 'Updates'), (body) => {
     const status = el('<div class="fhint" style="text-align:center">Loading…</div>');
     body.appendChild(status);
     const holder = el('<div></div>');
     body.appendChild(holder);
 
-    fetchMyReports().then((reports) => {
-      status.remove();
+    function draw(reports, note) {
       holder.innerHTML = '';
       if (!reports.length) {
-        holder.appendChild(el(`<div class="card"><div class="empty-state">
+        const empty = el(`<div class="card"><div class="empty-state">
           <div class="empty-icon">🗂</div>
           <div class="empty-title">Nothing yet</div>
           <div class="empty-sub">Reports, requests and notices you send from this device will appear here, with their progress.</div>
-        </div></div>`));
+        </div><button class="navrow navrow-top"><span class="icon">💬</span>${esc(label(config, 'letUsKnow', 'Let Us Know'))}<span class="chev">›</span></button></div>`);
+        empty.querySelector('button').addEventListener('click', () => Pages.letUsKnow());
+        holder.appendChild(empty);
         return;
       }
       const groups = [['Open', reports.filter((r) => !r.isClosed)],
@@ -440,8 +443,33 @@ Pages.myReports = function () {
         });
         holder.appendChild(c);
       });
+      if (note) holder.appendChild(el(`<div class="fhint">${esc(note)}</div>`));
+    }
+
+    // Last good list first, so a weak signal isn't a blank page.
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch { cached = null; }
+    if (cached && cached.length) { status.remove(); draw(cached); }
+
+    fetchMyReports().then((reports) => {
+      status.remove();
+      localStorage.setItem(cacheKey, JSON.stringify(reports));
+      draw(reports);
     }).catch(() => {
-      status.textContent = "Couldn't load your reports just now.";
+      status.remove();
+      if (cached && cached.length) {
+        draw(cached, "Showing the last saved list — couldn't refresh just now.");
+      } else {
+        // Honest: a failed fetch is not "nothing filed".
+        holder.innerHTML = '';
+        const retry = el(`<div class="card"><div class="empty-state">
+          <div class="empty-icon">📶</div>
+          <div class="empty-title">Couldn't load your updates</div>
+          <div class="empty-sub">Please check your connection and try again. Anything you've sent is safely recorded.</div>
+        </div><button class="navrow navrow-top">Try again</button></div>`);
+        retry.querySelector('button').addEventListener('click', () => { pageStack.pop(); Pages.myReports(); });
+        holder.appendChild(retry);
+      }
     });
   });
 };
