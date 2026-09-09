@@ -11,6 +11,23 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
   (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+// Resident-facing wording for failures — never raw "Unexpected token '<'".
+// Messages the backend wrote for residents pass through untouched.
+function friendlyError(e) {
+  const m = String((e && e.message) || e || '');
+  if (!navigator.onLine || /failed to fetch|load failed|networkerror|network request failed/i.test(m)) {
+    return 'You appear to be offline. Please check your connection and try again.';
+  }
+  if (/unexpected token|<!doctype|<html|is not valid json|json\.parse|unexpected end/i.test(m)) {
+    return "The building's server didn't answer properly. Please try again in a moment.";
+  }
+  if (/timeout|timed out/i.test(m)) {
+    return "The building's server is taking too long to answer. Please try again in a moment.";
+  }
+  return m || 'Something went wrong. Please try again.';
+}
+const DRAFT_KEPT = '\n\nNothing was lost — your answers are still here.';
+
 function toast(msg) {
   const t = $('toast');
   t.textContent = msg;
@@ -109,7 +126,7 @@ function initOnboarding() {
       store.config = config;
       renderHome();
     } catch (e) {
-      $('onboardError').textContent = e.message;
+      $('onboardError').textContent = friendlyError(e);
       $('onboardError').hidden = false;
     }
     $('unlockBtn').disabled = false;
@@ -130,7 +147,11 @@ function maybeShowWelcome() {
 }
 
 // In-memory home state: strip counts survive re-renders without flicker.
-const homeState = { unread: 0, openReports: null, blocked: false };
+// phase: 'idle' | 'loading' | 'loaded' | 'failed'; hasResult = any real
+// notices result (cached or fresh) is on screen.
+const homeState = { unread: 0, openReports: null, blocked: false,
+                    attention: false, urgentTitle: '', alertCount: 0,
+                    phase: 'idle', hasResult: false };
 
 function renderHome() {
   const config = store.config;
@@ -164,26 +185,42 @@ const BELL_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" ' 
 
 // Status strip: most residents open the app to check something — open
 // reports and unread notices lead, and tapping opens the Notices page.
-function renderStrip(config) {
+// Honest and content-aware, mirroring HomeView.stripText: never "all
+// caught up" before a result exists; name the thing that matters most.
+function stripText() {
+  if (!homeState.hasResult) {
+    return homeState.phase === 'failed'
+      ? "Couldn't check for notices — tap to retry"
+      : 'Checking for notices…';
+  }
+  if (homeState.urgentTitle) return 'Important: ' + homeState.urgentTitle;
   const parts = [];
-  if (homeState.openReports > 0) {
-    parts.push(homeState.openReports + ' open report' + (homeState.openReports === 1 ? '' : 's'));
+  const notices = homeState.unread - homeState.alertCount;
+  if (homeState.alertCount > 0) {
+    parts.push(homeState.alertCount === 1 ? 'Update on your report'
+                                          : homeState.alertCount + ' updates on your reports');
   }
-  if (homeState.unread > 0) {
-    parts.push(homeState.unread + ' new notice' + (homeState.unread === 1 ? '' : 's'));
-  }
-  const text = parts.length ? parts.join(' · ') : "Notices — you're all caught up";
+  if (notices > 0) parts.push(notices + ' new notice' + (notices === 1 ? '' : 's'));
+  return parts.length ? parts.join(' · ') : "Notices — you're all caught up";
+}
+
+function renderStrip(config) {
+  const text = stripText();
   const holder = $('statusStrip');
   // Red bell only when something needs attention (unread High-priority
   // notice or unread personal alert); the count badge is always red.
   holder.innerHTML =
-    `<button class="strip">
-       <span class="strip-bell${homeState.attention ? ' attention' : ''}">${BELL_SVG}</span>
+    `<button class="strip" aria-label="${esc(text)}. Opens notices.">
+       <span class="strip-bell${homeState.attention ? ' attention' : ''}" aria-hidden="true">${BELL_SVG}</span>
        <span class="strip-text">${esc(text)}</span>
-       ${homeState.unread > 0 ? `<span class="strip-badge">${homeState.unread}</span>` : ''}
-       <span class="chev">›</span>
+       ${homeState.unread > 0 ? `<span class="strip-badge" aria-hidden="true">${homeState.unread}</span>` : ''}
+       <span class="chev" aria-hidden="true">›</span>
      </button>`;
-  holder.querySelector('.strip').addEventListener('click', () => Pages.notices());
+  holder.querySelector('.strip').addEventListener('click', () => {
+    // A failed check retries in place; otherwise open the Notices page.
+    if (!homeState.hasResult && homeState.phase === 'failed') { loadNotices(config); return; }
+    Pages.notices();
+  });
 }
 
 // Tile icons drawn as SVG where no emoji matches the iOS SF Symbol.
@@ -231,12 +268,17 @@ function renderTiles(config, blocked) {
     ['contacts', '👥', 'Key Contacts', false, 'cool',
      ['📞', '✉️'], () => Pages.contacts()]
   ].filter(([, , , blockedHidden]) => !(blockedHidden && blocked));
-  holder.innerHTML = '<div class="tilegrid">' + tiles.map(([key, icon, title, , tone, subs], i) =>
-    `<button class="tile ${tone}" data-i="${i}">
-       <span class="ticon">${icon}</span>
+  // Screen readers get just the tile name (icons and sub-icons hidden);
+  // the Updates tile carries the open-report count.
+  holder.innerHTML = '<div class="tilegrid">' + tiles.map(([key, icon, title, , tone, subs], i) => {
+    const count = key === 'myReports' && homeState.openReports > 0 ? homeState.openReports : 0;
+    const label = count ? `${title}, ${count} open report${count === 1 ? '' : 's'}` : title;
+    return `<button class="tile ${tone}" data-i="${i}" aria-label="${esc(label)}">
+       ${count ? `<span class="tile-count" aria-hidden="true">${count}</span>` : ''}
+       <span class="ticon" aria-hidden="true">${icon}</span>
        <span class="tlabel">${esc(title)}</span>
-       <span class="tsubs">${subs.map((s) => `<span>${s}</span>`).join('')}</span>
-     </button>`).join('') + '</div>';
+       <span class="tsubs" aria-hidden="true">${subs.map((s) => `<span>${s}</span>`).join('')}</span>
+     </button>`; }).join('') + '</div>';
   holder.querySelectorAll('.tile').forEach((b, i) => {
     b.addEventListener('click', tiles[i][6]);
   });
@@ -310,26 +352,40 @@ function attentionIn(config, data) {
     (data.notices || []).some((n) => n.priority === 'High' && !read.has(noticeKey(n)));
 }
 
+// Fills the strip's content-aware fields from a notices result.
+function applyNoticesState(config, data) {
+  const read = store.readKeys(config.code);
+  homeState.unread = unreadIn(config, data);
+  homeState.attention = attentionIn(config, data);
+  homeState.alertCount = (data.alerts || []).filter((a) => !read.has(noticeKey(a))).length;
+  const urgent = (data.notices || []).find((n) => n.priority === 'High' && !read.has(noticeKey(n)));
+  homeState.urgentTitle = urgent ? urgent.title : '';
+  homeState.hasResult = true;
+}
+
 async function loadNotices(config) {
   // cached first (instant/offline), then fresh — mirrors NoticesStore
   const cached = store.cachedNotices(config.code);
   if (cached) {
     homeState.blocked = !!cached.blocked;
-    homeState.unread = unreadIn(config, cached);
-    homeState.attention = attentionIn(config, cached);
-    renderStrip(config);
-    renderTiles(config, homeState.blocked);
+    applyNoticesState(config, cached);
   }
+  homeState.phase = 'loading';
+  renderStrip(config);
+  renderTiles(config, homeState.blocked);
   try {
     const fresh = await fetchNotices(config.code);
     const blocked = fresh.deviceStatus === 'blocked';
     store.setCachedNotices(config.code, { notices: fresh.notices, alerts: fresh.alerts || [], blocked });
     homeState.blocked = blocked;
-    homeState.unread = unreadIn(config, fresh);
-    homeState.attention = attentionIn(config, fresh);
+    applyNoticesState(config, fresh);
+    homeState.phase = 'loaded';
     renderStrip(config);
     renderTiles(config, blocked);
-  } catch { /* keep cache */ }
+  } catch {
+    homeState.phase = 'failed';   // cached state (if any) stays on screen
+    renderStrip(config);
+  }
 }
 
 // Open (not closed) submissions for the strip, mirroring refreshOpenReports.
@@ -338,7 +394,7 @@ async function loadOpenReports(config) {
   try {
     const reports = await fetchMyReports();
     homeState.openReports = reports.filter((r) => !r.isClosed).length;
-    renderStrip(config);
+    renderTiles(config, homeState.blocked);   // count pill on the Updates tile
   } catch { /* strip just omits the count */ }
 }
 
@@ -458,6 +514,15 @@ async function boot() {
   // get their own hosted copy with their own BACKEND_DEFAULT.
   const params = new URLSearchParams(location.search);
   const qrCode = (params.get('code') || '').trim().toUpperCase();
+
+  // Coming back to the tab/app: refresh so the strip isn't stale.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && store.config &&
+        document.body.dataset.subpage !== '1') {
+      loadNotices(store.config);
+      loadOpenReports(store.config);
+    }
+  });
 
   if (store.config) {
     renderHome();

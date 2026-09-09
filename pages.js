@@ -311,7 +311,7 @@ function formPage(opts) {
           : '';
         showAlert(opts.successTitle, opts.successMsg(id) + nudge, goBack);
       } catch (e) {
-        showAlert('Submission Failed', e.message);
+        showAlert('Submission Failed', friendlyError(e) + DRAFT_KEPT);
         btn.disabled = false;
       }
       btn.textContent = opts.submitLabel || 'Submit';
@@ -457,7 +457,7 @@ Pages.myDetails = function () {
           try {
             await smsCall('sendSmsVerification', {});
             smsSent = true;
-          } catch (e) { showSmsError(e.message); }
+          } catch (e) { showSmsError(friendlyError(e)); }
           renderSms();
         });
         smsHolder.appendChild(b);
@@ -474,12 +474,12 @@ Pages.myDetails = function () {
             await smsCall('checkSmsVerification', { otp: input.value.trim() });
             d.verifiedPhone = d.phoneNumber; details.save(d);
             smsSent = false;
-          } catch (e) { showSmsError(e.message); return; }
+          } catch (e) { showSmsError(friendlyError(e)); return; }
           renderSms();
         });
         wrap.querySelector('.resend').addEventListener('click', async () => {
           try { await smsCall('sendSmsVerification', {}); toast('Code re-sent.'); }
-          catch (e) { showSmsError(e.message); }
+          catch (e) { showSmsError(friendlyError(e)); }
         });
         smsHolder.appendChild(wrap);
       }
@@ -533,7 +533,7 @@ Pages.myDetails = function () {
           try {
             await verifyCall('sendVerification', {});
             codeSent = true;
-          } catch (e) { showVerifyError(e.message); }
+          } catch (e) { showVerifyError(friendlyError(e)); }
           renderVerify();
         });
         verifyHolder.appendChild(b);
@@ -550,12 +550,12 @@ Pages.myDetails = function () {
             await verifyCall('checkVerification', { otp: input.value.trim() });
             d.verifiedEmail = d.email; details.save(d);
             codeSent = false;
-          } catch (e) { showVerifyError(e.message); return; }
+          } catch (e) { showVerifyError(friendlyError(e)); return; }
           renderVerify();
         });
         wrap.querySelector('.resend').addEventListener('click', async () => {
           try { await verifyCall('sendVerification', {}); toast('Code re-sent.'); }
-          catch (e) { showVerifyError(e.message); }
+          catch (e) { showVerifyError(friendlyError(e)); }
         });
         verifyHolder.appendChild(wrap);
       }
