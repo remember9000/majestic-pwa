@@ -172,6 +172,36 @@ function audioSection(body, state) {
 }
 
 // ---------- the four report forms ----------
+// "Stop the water": the resident's shut-off valve location at the top of
+// the leak form. Cache-first (same key as My Unit); fetches and caches if
+// this device has never opened My Unit; silent when nothing to show.
+function shutoffCallout(container) {
+  const config = store.config;
+  const unit = details.load().unitNumber.trim();
+  if (!unit) return;
+  const noun = label(config, 'unitNoun', 'Unit').toLowerCase();
+  const holder = el('<div></div>');
+  container.appendChild(holder);
+  const show = (info) => {
+    if (!info || !info.waterShutoff) return;
+    holder.innerHTML = '';
+    holder.appendChild(sectionTitle('Stop the water — your shut-off valve'));
+    const c = card();
+    c.appendChild(el(`<div class="frow" style="font-size:15px">💧 ${esc(info.waterShutoff)}</div>`));
+    const more = el(`<button class="navrow"><span class="icon">🏠</span>More about ${esc(noun)} ${esc(unit)}<span class="chev">›</span></button>`);
+    more.addEventListener('click', () => Pages.myUnit());
+    c.appendChild(more);
+    holder.appendChild(c);
+  };
+  const cacheKey = 'unitinfo-' + config.code + '-' + unit;
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch { cached = null; }
+  if (cached) { show(cached); return; }
+  backendJSON({ action: 'unit', code: config.code, unit })
+    .then((j) => { localStorage.setItem(cacheKey, JSON.stringify(j.unit)); show(j.unit); })
+    .catch(() => { /* leave the form uncluttered */ });
+}
+
 Pages.leak = () => formPage({
   title: 'Water Leak',
   prefix: 'LK', draftKey: 'leak', submitLabel: 'Submit Report',
@@ -181,6 +211,7 @@ Pages.leak = () => formPage({
                   neighbourContacted: '', neighbourApartments: '', neighbourDetails: '', photos: [] }),
   sections(body, s, refresh) {
     const noun = label(store.config, 'unitNoun', 'Unit').toLowerCase();
+    shutoffCallout(body);   // the resident's own valve, where the task happens
     body.appendChild(sectionTitle('Incident Details'));
     const c = card();
     c.appendChild(dateTimeRow('Date first noticed *', s, 'dateNoticed', 'timeNoticed'));

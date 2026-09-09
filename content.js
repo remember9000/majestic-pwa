@@ -306,6 +306,25 @@ function openCarousel(config, images, startID) {
 }
 
 // ---------- FAQ ----------
+// Cross-links from FAQ answers to the pages they name (sheet labels honoured).
+function faqPageLinks(answer) {
+  const config = store.config;
+  const text = String(answer || '').toLowerCase();
+  const out = [];
+  const add = (title, icon, needles, open) => {
+    if (needles.some((n) => n && text.includes(n.toLowerCase()))) out.push({ title, icon, open });
+  };
+  add('Key Contacts', '👥', ['Key Contacts'], () => Pages.contacts());
+  const luk = label(config, 'letUsKnow', 'Let Us Know');
+  add(luk, '💬', [luk, 'Let Us Know'], () => Pages.letUsKnow());
+  const unitNoun = label(config, 'unitNoun', 'Unit');
+  const myUnit = label(config, 'myUnit', 'My ' + unitNoun);
+  add(myUnit, '🏠', [myUnit, 'My Unit'], () => Pages.myUnit());
+  const myDetails = label(config, 'myDetails', 'My Details');
+  add(myDetails, '🪪', [myDetails, 'My Details'], () => Pages.myDetails());
+  return out;
+}
+
 Pages.faq = function () {
   const config = store.config;
   openPage(label(config, 'faq', 'Frequently Asked Questions'), (body) => {
@@ -361,9 +380,15 @@ Pages.faq = function () {
           group.items.forEach((it) => {
             const qa = el(`<div class="frow faqitem"><div class="faqq">${esc(it.question)}</div>
               <div class="faqa" hidden>${esc(it.answer)}</div></div>`);
+            // An answer that says "go to Key Contacts" should take you there.
+            const answerEl = qa.querySelector('.faqa');
+            faqPageLinks(it.answer).forEach((lnk) => {
+              const b = el(`<button class="faq-link">${esc(lnk.icon)} Open ${esc(lnk.title)} ›</button>`);
+              b.addEventListener('click', (e) => { e.stopPropagation(); lnk.open(); });
+              answerEl.appendChild(b);
+            });
             qa.addEventListener('click', () => {
-              const a = qa.querySelector('.faqa');
-              a.hidden = !a.hidden;
+              answerEl.hidden = !answerEl.hidden;
             });
             c.appendChild(qa);
           });

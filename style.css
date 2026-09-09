@@ -557,3 +557,7 @@ button.submitbtn:disabled { opacity: .45; }
   border-top: 1px solid #e5e5ea; padding: 12px 16px; font-size: 14px; cursor: pointer; color: inherit; }
 div:first-child > .faq-suggest { border-top: none; }
 .faq-answer { padding: 0 16px 12px; font-size: 13.5px; color: #6e6e73; white-space: pre-line; }
+
+/* FAQ answer cross-links */
+.faq-link { display: block; margin-top: 8px; background: none; border: 0; padding: 4px 0;
+  color: var(--primary); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; }

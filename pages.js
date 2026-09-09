@@ -414,6 +414,18 @@ Pages.myDetails = function () {
       updateAddrPreview();
     }, { placeholder: `${noun} number (e.g. 12 or 12A)` }));
     c.appendChild(addrPreview);
+    // Cross-link to the unit's reference page (valves, meters, boundaries).
+    const unitLink = el(`<button class="navrow" hidden><span class="icon">🏠</span><span class="unitlink-text"></span><span class="chev">›</span></button>`);
+    unitLink.addEventListener('click', () => Pages.myUnit());
+    c.appendChild(unitLink);
+    const baseUpdateAddr = updateAddrPreview;
+    updateAddrPreview = function () {
+      baseUpdateAddr();
+      const unit = details.load().unitNumber.trim();
+      unitLink.hidden = !unit;
+      unitLink.querySelector('.unitlink-text').textContent =
+        `Shut-off valve, meters and boundaries for ${noun.toLowerCase()} ${unit}`;
+    };
     updateAddrPreview();
     body.appendChild(c);
 
