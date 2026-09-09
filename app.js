@@ -493,6 +493,9 @@ function initChrome() {
   $('settingsCancel').addEventListener('click', () => { $('settingsSheet').hidden = true; });
   $('settingsSheet').addEventListener('click', (e) => { if (e.target === $('settingsSheet')) $('settingsSheet').hidden = true; });
   $('changeProperty').addEventListener('click', () => {
+    // Confirm first — one tap used to wipe the app (UI review #8).
+    const name = (store.config && store.config.appName) || 'this building';
+    if (!window.confirm(`Leave ${name}?\n\nThis removes ${name} from this device. You'll need the building's code or QR poster to set it up again. Your details are kept.`)) return;
     store.config = null;
     localStorage.removeItem('backendURL');
     $('settingsSheet').hidden = true;

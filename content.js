@@ -525,17 +525,31 @@ function contactCard(list) {
 }
 
 Pages.contacts = function () {
+  const config = store.config;
+  const code = config.code;
+  // 000 in Australia; a building elsewhere sets Settings JSON emergencyNumber.
+  const emergencyNumber = ((config.settings || {}).emergencyNumber || '').trim() || '000';
+  const cacheKey = 'contacts-' + code;
+
   openPage('Key Contacts', (body) => {
+    // Always first, never dependent on the network (UI review #7).
+    const sos = el(`<div class="card"><a class="sos-row" href="tel:${esc(emergencyNumber)}"
+        aria-label="Emergency, call ${esc(emergencyNumber)}. Police, fire or ambulance.">
+        <span class="sos-icon" aria-hidden="true">📞</span>
+        <span><span class="sos-title">Emergency — call ${esc(emergencyNumber)}</span>
+        <span class="sos-sub">Police, fire or ambulance</span></span>
+        <span class="chev" aria-hidden="true">›</span></a></div>`);
+    body.appendChild(sos);
+
     const status = el('<div class="fhint" style="text-align:center">Loading…</div>');
     body.appendChild(status);
     const holder = el('<div></div>');
     body.appendChild(holder);
 
-    fetchContacts().then((contacts) => {
-      status.remove();
+    function draw(contacts, note) {
       holder.innerHTML = '';
       if (!contacts.length) {
-        holder.appendChild(el('<div class="card"><div class="cal-empty">No contacts have been published for this building yet.</div></div>'));
+        holder.appendChild(el(`<div class="card"><div class="cal-empty">${esc(note || 'No contacts have been published for this building yet.')}</div></div>`));
         return;
       }
       const urgent = contacts.filter((c) => c.emergency);
@@ -543,15 +557,37 @@ Pages.contacts = function () {
       if (urgent.length) {
         holder.appendChild(sectionTitle('Urgent / After Hours'));
         holder.appendChild(contactCard(urgent));
-        holder.appendChild(el('<div class="fhint">In a life-threatening emergency, call 000 first.</div>'));
       }
       if (everyday.length) {
         holder.appendChild(sectionTitle('Your Building'));
         holder.appendChild(contactCard(everyday));
       }
+      if (note) holder.appendChild(el(`<div class="fhint">${esc(note)}</div>`));
+    }
+
+    // Last good list first, so the page isn't blank on a weak signal.
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch { cached = null; }
+    if (cached && cached.length) { status.remove(); draw(cached); }
+
+    fetchContacts().then((contacts) => {
+      status.remove();
+      localStorage.setItem(cacheKey, JSON.stringify(contacts));
+      draw(contacts);
     }).catch(() => {
-      status.textContent = "Couldn't load the contacts just now.";
+      status.remove();
+      if (cached && cached.length) {
+        draw(cached, "Showing the last saved list — couldn't refresh just now.");
+      } else {
+        // Honest: a failed fetch is not "nothing published".
+        holder.innerHTML = '';
+        const retry = el(`<div class="card"><div class="cal-empty">Couldn't load the building's contacts.</div>
+          <button class="navrow navrow-top">Try again</button></div>`);
+        retry.querySelector('button').addEventListener('click', () => Pages.contacts.reload());
+        holder.appendChild(retry);
+      }
     });
+    Pages.contacts.reload = () => { pageStack.pop(); Pages.contacts(); };
   });
 };
 
