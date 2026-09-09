@@ -513,6 +513,13 @@ Pages.myReports = function () {
 };
 
 Pages.myReportDetail = function (rep) {
+  // Viewing a report counts as reading its alerts (clears the Updates pill).
+  try {
+    const code = store.config.code;
+    ((store.cachedNotices(code) || {}).alerts || [])
+      .filter((a) => a.incidentID === rep.reference)
+      .forEach((a) => store.markRead(code, noticeKey(a)));
+  } catch { /* cosmetic */ }
   openPage(rep.type, (body) => {
     body.appendChild(sectionTitle('Summary'));
     const c = card();

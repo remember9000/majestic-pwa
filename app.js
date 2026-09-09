@@ -219,10 +219,11 @@ function renderStrip(config) {
        <button class="colpill${updatesActive ? ' red' : ''}" aria-label="${esc(uText)}. Updates on your reports. Opens notices.">
          <span aria-hidden="true">${BELL_SMALL_SVG}</span>${esc(uText)}</button>
      </div>`;
-  holder.querySelectorAll('.colpill').forEach((b) => b.addEventListener('click', () => {
-    // A failed check retries in place; otherwise open the Notices page.
+  holder.querySelectorAll('.colpill').forEach((b, i) => b.addEventListener('click', () => {
+    // A failed check retries in place; Notices pill → Notices page,
+    // Updates pill → Updates page (it sits over the Updates tile).
     if (!homeState.hasResult && homeState.phase === 'failed') { loadNotices(config); return; }
-    Pages.notices();
+    i === 0 ? Pages.notices() : Pages.myReports();
   }));
 }
 
