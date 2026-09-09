@@ -514,11 +514,17 @@ Pages.myReports = function () {
 
 Pages.myReportDetail = function (rep) {
   // Viewing a report counts as reading its alerts (clears the Updates pill).
+  // Remember which were unread first, so those rows get a "New" marker.
+  const newKeys = new Set();
   try {
     const code = store.config.code;
+    const read = store.readKeys(code);
     ((store.cachedNotices(code) || {}).alerts || [])
       .filter((a) => a.incidentID === rep.reference)
-      .forEach((a) => store.markRead(code, noticeKey(a)));
+      .forEach((a) => {
+        if (!read.has(noticeKey(a))) newKeys.add(noticeKey(a));
+        store.markRead(code, noticeKey(a));
+      });
   } catch { /* cosmetic */ }
   openPage(rep.type, (body) => {
     body.appendChild(sectionTitle('Summary'));
@@ -548,8 +554,9 @@ Pages.myReportDetail = function (rep) {
         : "No updates yet. You'll be notified here when the status changes."}</div>`));
     } else {
       rep.updates.forEach((u) => {
+        const isNew = newKeys.has(noticeKey(u));
         p.appendChild(el(`<div class="update-row">
-          <div class="update-title">${esc(u.title)}</div>
+          <div class="update-title">${esc(u.title)}${isNew ? '<span class="update-new" aria-label="New update">New</span>' : ''}</div>
           <div class="update-msg">${esc(u.message)}</div>
           <div class="update-date">${esc(u.date)}</div>
         </div>`));
