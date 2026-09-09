@@ -561,3 +561,7 @@ div:first-child > .faq-suggest { border-top: none; }
 /* FAQ answer cross-links */
 .faq-link { display: block; margin-top: 8px; background: none; border: 0; padding: 4px 0;
   color: var(--primary); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; }
+
+/* alert → report link */
+.alert-report { display: block; margin-top: 8px; background: none; border: 0; padding: 4px 0;
+  color: var(--primary); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; }

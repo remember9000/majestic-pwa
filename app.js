@@ -323,7 +323,8 @@ function renderNoticeGroup(container, config, heading, items, isAlert) {
           <span class="ntitle">${isAlert ? '🔔 ' : ''}${esc(n.title)}</span>
           <span class="ndate">${esc(isAlert && n.incidentID ? n.incidentID + ' — ' + n.date : n.date)}</span>
         </div>
-        <div class="nbody">${esc(n.message)}</div>
+        <div class="nbody">${esc(n.message)}${isAlert && n.incidentID
+          ? `<button class="alert-report" data-ref="${esc(n.incidentID)}">🗨 View this report ›</button>` : ''}</div>
       </div>`;
     }).join('') + '</div>';
   holder.querySelectorAll('.notice').forEach((el) => {

@@ -83,6 +83,20 @@ Pages.notices = function () {
       renderNoticeGroup(holder, config, 'Notices', notices, false);
     }
 
+    // "View this report": open the alert's report, or the Updates list
+    // if it isn't in the cached/fetched set.
+    let reports = [];
+    try { reports = JSON.parse(localStorage.getItem('reports-' + config.code)) || []; } catch { reports = []; }
+    fetchMyReports().then((r) => { reports = r; localStorage.setItem('reports-' + config.code, JSON.stringify(r)); })
+      .catch(() => { /* cached list stands */ });
+    holder.addEventListener('click', (e) => {
+      const b = e.target.closest('.alert-report');
+      if (!b) return;
+      e.stopPropagation();
+      const rep = reports.find((r) => r.reference === b.dataset.ref);
+      rep ? Pages.myReportDetail(rep) : Pages.myReports();
+    });
+
     draw(store.cachedNotices(config.code) || {});
     fetchNotices(config.code).then((fresh) => {
       const blocked = fresh.deviceStatus === 'blocked';
