@@ -512,6 +512,70 @@ Pages.myReports = function () {
   });
 };
 
+// Repeat-incident log for noise reports — "this happened again", one tap,
+// timestamped. Replaces the audio recorder (removed 2026-09-13).
+function repeatSection(body, rep) {
+  const repeats = (rep.repeats || []).slice();
+  const head = sectionTitle('Repeat occurrences');
+  body.appendChild(head);
+  const c = card();
+  body.appendChild(c);
+
+  const draw = () => {
+    head.textContent = repeats.length ? `Repeat occurrences — ${repeats.length} logged` : 'Repeat occurrences';
+    c.innerHTML = '';
+    const btn = el('<button class="navrow"><span class="icon">➕</span><b>This happened again</b></button>');
+    btn.addEventListener('click', () => openRepeatSheet());
+    c.appendChild(btn);
+    if (!repeats.length) {
+      c.appendChild(el('<div class="fhint">Each time the noise recurs, log it here. A dated list of occurrences is what carries weight with the manager or a mediator.</div>'));
+    } else {
+      repeats.forEach((r) => {
+        c.appendChild(el(`<div class="update-row">
+          <div class="update-title">${esc(r.when)}${r.duration ? `<span class="update-date" style="margin-left:auto">${esc(r.duration)}</span>` : ''}</div>
+          ${r.note ? `<div class="update-msg">${esc(r.note)}</div>` : ''}
+        </div>`));
+      });
+    }
+  };
+
+  const openRepeatSheet = () => {
+    const nowText = new Date().toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const sheet = el(`<div class="modal-back"><div class="modal">
+      <h3>Log it again</h3>
+      <div class="fhint">Logged as happening now, ${esc(nowText)}. Both fields are optional.</div>
+      <label class="flabel">How long did it last?</label>
+      <select class="finput" id="rp-dur">
+        <option value="">Not sure</option>
+        ${['A few minutes','About 15 minutes','About 30 minutes','About an hour','Several hours','Still going']
+          .map((d) => `<option>${d}</option>`).join('')}
+      </select>
+      <label class="flabel">Anything to add?</label>
+      <textarea class="finput" id="rp-note" rows="3" placeholder="e.g. same bass through the floor"></textarea>
+      <div class="modal-actions"><button class="btn-secondary" id="rp-cancel">Cancel</button><button class="btn-primary" id="rp-save">Log it</button></div>
+    </div></div>`);
+    document.body.appendChild(sheet);
+    sheet.querySelector('#rp-cancel').addEventListener('click', () => sheet.remove());
+    sheet.querySelector('#rp-save').addEventListener('click', async () => {
+      const save = sheet.querySelector('#rp-save');
+      const duration = sheet.querySelector('#rp-dur').value;
+      const note = sheet.querySelector('#rp-note').value.trim();
+      save.disabled = true; save.textContent = 'Saving…';
+      try {
+        await postReport({ action: 'noiseRepeat', incidentID: rep.reference, duration, note });
+        repeats.unshift({ when: nowText, duration, note });
+        sheet.remove();
+        draw();
+      } catch (e) {
+        save.disabled = false; save.textContent = 'Log it';
+        alert(friendlyError(e));
+      }
+    });
+  };
+
+  draw();
+}
+
 Pages.myReportDetail = function (rep) {
   // Viewing a report counts as reading its alerts (clears the Updates pill).
   // Remember which were unread first, so those rows get a "New" marker.
@@ -545,6 +609,8 @@ Pages.myReportDetail = function (rep) {
       body.appendChild(w);
       body.appendChild(el('<div class="fhint">This submission is recorded but hasn\'t been sent to the building manager yet. Verifying your email releases it.</div>'));
     }
+
+    if (rep.type === 'Noise' && !rep.isClosed) repeatSection(body, rep);
 
     body.appendChild(sectionTitle('Progress'));
     const p = card();

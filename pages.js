@@ -354,7 +354,7 @@ Pages.letUsKnow = function () {
     }
     body.appendChild(c);
 
-    body.appendChild(sectionTitle(label(config, 'giveNotice', 'Give Notice')));
+    body.appendChild(sectionTitle(label(config, 'giveNotice', 'Works and Renovations')));
     c = card();
     c.appendChild(mk('🔧', 'My Trade(s) Will Be On-Site', Pages.trades));
     c.appendChild(mk('🔨', 'My Upcoming Renovations', Pages.renovation));

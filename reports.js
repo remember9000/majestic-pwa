@@ -1,5 +1,5 @@
 /* Majestic resident PWA — Phase 3: the four report forms with photos
-   (leak, common property, security, noise) + audio on noise, and the
+   (leak, common property, security, noise) and the
    Public Property redirect page. Mirrors the iOS forms and payloads. */
 
 'use strict';
@@ -94,82 +94,7 @@ function photosSection(body, state, titleText) {
   redraw();
 }
 
-// ---------- audio (mirrors AudioAttachmentSection: 60s cap per clip) ----------
-const AUDIO_LIMIT_S = 60;
-const audioMime = () => {
-  if (!window.MediaRecorder) return null;
-  for (const m of ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']) {
-    if (MediaRecorder.isTypeSupported(m)) return m;
-  }
-  return null;
-};
-
-function audioSection(body, state) {
-  body.appendChild(sectionTitle('Audio Recordings'));
-  const c = card();
-  const list = el('<div></div>');
-  const row = el('<div class="frow"><button type="button" class="verify-link">● Record the noise</button></div>');
-  const btn = row.querySelector('button');
-  const mime = audioMime();
-  let recorder = null, timer = null, seconds = 0;
-
-  function redraw() {
-    list.innerHTML = '';
-    state.audioClips.forEach((clip, i) => {
-      const item = el(`<div class="frow audioitem"><audio controls src="data:${clip.mime};base64,${clip.b64}"></audio>
-        <button type="button">✕</button></div>`);
-      item.querySelector('button').addEventListener('click', () => {
-        state.audioClips.splice(i, 1); redraw();
-      });
-      list.appendChild(item);
-    });
-  }
-
-  async function start() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      recorder = new MediaRecorder(stream, { mimeType: mime });
-      const chunks = [];
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunks, { type: mime });
-        const b64 = await new Promise((res) => {
-          const r = new FileReader();
-          r.onload = () => res(String(r.result).split(',')[1]);
-          r.readAsDataURL(blob);
-        });
-        state.audioClips.push({ b64, mime: mime.split(';')[0] });
-        redraw();
-      };
-      recorder.start();
-      seconds = 0;
-      btn.textContent = '■ Stop (1:00)';
-      timer = setInterval(() => {
-        seconds++;
-        const left = AUDIO_LIMIT_S - seconds;
-        btn.textContent = `■ Stop (${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')})`;
-        if (seconds >= AUDIO_LIMIT_S) stop();
-      }, 1000);
-    } catch {
-      toast('Microphone access is off — enable it in your browser settings to record.');
-    }
-  }
-  function stop() {
-    clearInterval(timer);
-    if (recorder && recorder.state !== 'inactive') recorder.stop();
-    recorder = null;
-    btn.textContent = '● Record the noise';
-  }
-  btn.addEventListener('click', () => { recorder ? stop() : start(); });
-  if (!mime) { btn.disabled = true; btn.textContent = 'Recording not supported in this browser'; }
-
-  c.appendChild(list);
-  c.appendChild(row);
-  body.appendChild(c);
-  body.appendChild(el('<div class="fhint">Optional. Record up to 60 seconds per clip of the noise itself.</div>'));
-  redraw();
-}
+// (audio recording removed 2026-09-13 — replaced by the repeat-incident log on Updates)
 
 // ---------- the four report forms ----------
 // "Stop the water": the resident's shut-off valve location at the top of
@@ -391,7 +316,7 @@ Pages.noise = () => formPage({
                   noiseType: '', suspectedSource: '', noiseDescription: '',
                   isRecurring: '', recurringDetails: '', quietHours: '', quietHoursDetails: '',
                   impact: '', impactDetails: '', raisedWithPerson: '', raisedDetails: '',
-                  photos: [], audioClips: [] }),
+                  photos: [] }),
   sections(body, s, refresh) {
     const noun = label(store.config, 'unitNoun', 'Unit').toLowerCase();
     body.appendChild(sectionTitle('Noise Details'));
@@ -420,7 +345,6 @@ Pages.noise = () => formPage({
     body.appendChild(q);
 
     photosSection(body, s);
-    audioSection(body, s);
   },
   isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.noiseType &&
     s.noiseDescription.trim(),
@@ -434,9 +358,7 @@ Pages.noise = () => formPage({
     quietHours: s.quietHours, quietHoursDetails: s.quietHoursDetails,
     impact: s.impact, impactDetails: s.impactDetails,
     raisedWithPerson: s.raisedWithPerson, raisedDetails: s.raisedDetails,
-    photos: s.photos,
-    audioClips: s.audioClips.map((c) => c.b64),
-    audioMimeType: s.audioClips.length ? s.audioClips[0].mime : ''
+    photos: s.photos
   }),
   successTitle: 'Thank you for your report',
   successMsg: (id) => `Your report has been recorded. Reference: ${id}.`
