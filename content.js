@@ -540,7 +540,8 @@ function repeatSection(body, rep) {
   };
 
   const openRepeatSheet = () => {
-    const nowText = new Date().toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const nowText = new Date().toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+      .replace(/\b(am|pm)\b/, (m) => m.toUpperCase());   // match the server's "1:28 PM"
     const sheet = el(`<div class="modal-back"><div class="modal">
       <h3>Log it again</h3>
       <div class="fhint">Logged as happening now, ${esc(nowText)}. Both fields are optional.</div>
