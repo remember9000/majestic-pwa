@@ -562,7 +562,7 @@ function repeatSection(body, rep) {
       const note = sheet.querySelector('#rp-note').value.trim();
       save.disabled = true; save.textContent = 'Saving…';
       try {
-        await postReport({ action: 'noiseRepeat', incidentID: rep.reference, duration, note });
+        await postReport({ action: 'noiseRepeat', code: store.config.code, incidentID: rep.reference, duration, note });
         repeats.unshift({ when: nowText, duration, note });
         sheet.remove();
         draw();
