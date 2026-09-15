@@ -377,3 +377,204 @@ Pages.publicProperty = function () {
     body.appendChild(el('<div class="fhint">Snap Send Solve is a free app for reporting issues to local councils and authorities. This link opens in your browser.</div>'));
   });
 };
+
+// ---------- Report an Issue — the capture screen (UI notes item 10) ----------
+// Camera-first, never camera-mandatory: live preview on top (getUserMedia),
+// the form right below. One triage question, structured location, the
+// resident's own words. No type — the manager classifies (item 11).
+const CAPTURE_LEVELS = ['Basement', 'Ground', 'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Roof'];
+const CAPTURE_AREAS = ['Car park', 'Lobby', 'Corridor', 'Lift', 'Bin room', 'Stairwell',
+  'Roof', 'Plant room', 'Pool', 'Garden / Grounds', 'Building exterior', 'Other'];
+const URGENCY = [['now', '⚠️', 'Happening now'], ['recent', '🕘', 'Just happened'], ['ongoing', '📅', 'Ongoing problem']];
+function captureList(key, dflt) {
+  const raw = ((store.config.settings || {})[key] || '').split(',').map((s) => s.trim()).filter(Boolean);
+  return raw.length ? raw : dflt;
+}
+function afterHoursContact() {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('contacts-' + store.config.code)) || []; } catch { list = []; }
+  const real = list.filter((c) => !c.emergency && c.phone);
+  return real.find((c) => /after|24/i.test(c.role + ' ' + c.hours + ' ' + c.notes)) || real[0] || null;
+}
+const telHref = (p) => 'tel:' + String(p || '').replace(/[^0-9+]/g, '');
+
+Pages.captureIssue = function () {
+  const config = store.config;
+  openPage(label(config, 'reportIssue', 'Report an Issue'), (body) => {
+    const state = drafts.capture || (drafts.capture = { urgency: '', level: '', area: '', locationDetail: '', description: '', photos: [] });
+    const noun = label(config, 'unitNoun', 'Unit').toLowerCase();
+    const emergencyNumber = ((config.settings || {}).emergencyNumber || '').trim() || '000';
+
+    // ---- camera card ----
+    const cam = el(`<div class="camwrap">
+      <video class="camvideo" autoplay playsinline muted hidden></video>
+      <div class="camoff"><div class="camoff-icon">📷</div><div class="camoff-text">Starting camera…</div></div>
+      <div class="cambar">
+        <div class="camthumbs"></div>
+        <label class="cambtn" title="Add from library">🖼<input type="file" accept="image/*" multiple hidden></label>
+        <button type="button" class="cambtn camtorch" hidden title="Torch">🔦</button>
+        <button type="button" class="camshutter" hidden aria-label="Take photo"></button>
+      </div></div>`);
+    body.appendChild(cam);
+    const hint = el('<div class="fhint">No photo needed — just fill in the details below.</div>');
+    body.appendChild(hint);
+    const video = cam.querySelector('video'), off = cam.querySelector('.camoff'), offText = cam.querySelector('.camoff-text');
+    const thumbs = cam.querySelector('.camthumbs'), shutter = cam.querySelector('.camshutter'), torchBtn = cam.querySelector('.camtorch');
+    const fileInput = cam.querySelector('input[type=file]');
+    let stream = null, track = null, torchOn = false;
+
+    const drawThumbs = () => {
+      thumbs.innerHTML = '';
+      state.photos.forEach((b64, i) => {
+        const t = el(`<div class="camthumb"><img src="data:image/jpeg;base64,${b64}"><button type="button" aria-label="Remove">✕</button></div>`);
+        t.querySelector('button').addEventListener('click', () => { state.photos.splice(i, 1); drawThumbs(); });
+        thumbs.appendChild(t);
+      });
+      shutter.disabled = state.photos.length >= MAX_PHOTOS;
+    };
+    drawThumbs();
+
+    async function startCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { offText.textContent = 'No camera here — add photos from your library.'; return; }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        video.srcObject = stream; video.hidden = false; off.hidden = true; shutter.hidden = false;
+        hint.textContent = 'Snap a wide shot showing where, and a close-up showing what. No photo? Just fill in the details below.';
+        track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.torch) torchBtn.hidden = false;
+      } catch (e) {
+        offText.textContent = e && e.name === 'NotAllowedError'
+          ? 'Camera access is off — allow it in your browser, or add photos from your library.'
+          : 'Camera not available — add photos from your library.';
+      }
+    }
+    function stopCamera() {
+      if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; track = null; }
+    }
+    shutter.addEventListener('click', () => {
+      if (!stream || state.photos.length >= MAX_PHOTOS) return;
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, PHOTO_MAX_DIM / Math.max(video.videoWidth, video.videoHeight));
+      canvas.width = Math.round(video.videoWidth * scale); canvas.height = Math.round(video.videoHeight * scale);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);   // canvas re-encode: no EXIF/GPS
+      state.photos.push(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
+      drawThumbs();
+    });
+    torchBtn.addEventListener('click', async () => {
+      if (!track) return;
+      torchOn = !torchOn;
+      try { await track.applyConstraints({ advanced: [{ torch: torchOn }] }); torchBtn.classList.toggle('on', torchOn); }
+      catch { /* torch is a nicety */ }
+    });
+    fileInput.addEventListener('change', async () => {
+      for (const f of [...fileInput.files].slice(0, MAX_PHOTOS - state.photos.length)) {
+        try { state.photos.push(await compressImage(f)); } catch (e) { toast(e.message); }
+      }
+      fileInput.value = ''; drawThumbs();
+    });
+    startCamera();
+    // Stop the camera when the page is left (back/home re-render the page).
+    const obs = new MutationObserver(() => { if (!document.body.contains(cam)) { stopCamera(); obs.disconnect(); } });
+    obs.observe($('page'), { childList: true, subtree: true });
+
+    // ---- urgency ----
+    body.appendChild(sectionTitle('Is this happening right now? *'));
+    const uc = card();
+    const urow = el('<div class="urgrow"></div>');
+    const ufoot = el('<div class="fhint"></div>');
+    const drawUrgency = () => {
+      urow.innerHTML = '';
+      URGENCY.forEach(([key, icon, title]) => {
+        const b = el(`<button type="button" class="urgbtn${state.urgency === key ? (key === 'now' ? ' red' : ' navy') : ''}"><span>${icon}</span>${esc(title)}</button>`);
+        b.addEventListener('click', () => { state.urgency = key; drawUrgency(); drawCall(); refresh(); });
+        urow.appendChild(b);
+      });
+      ufoot.textContent = state.urgency === 'now'
+        ? `Marked urgent — the manager's alert says so. Fire, flood, gas or personal safety: call ${emergencyNumber} first.`
+        : 'Water actively running versus a stain on the ceiling is the difference between a callout tonight and a job next week.';
+    };
+    uc.appendChild(urow); body.appendChild(uc); body.appendChild(ufoot); drawUrgency();
+
+    // ---- where ----
+    body.appendChild(sectionTitle('Where'));
+    const wc = card();
+    wc.appendChild(selectRow('Level', captureList('captureLevels', CAPTURE_LEVELS), state.level, (v) => { state.level = v; }, 'Choose…'));
+    wc.appendChild(selectRow('Area *', ['My ' + noun].concat(captureList('captureAreas', CAPTURE_AREAS)), state.area, (v) => { state.area = v; refresh(); }, 'Choose…'));
+    wc.appendChild(textRow('Where exactly?', state.locationDetail, (i) => { state.locationDetail = i.value; }, { placeholder: `e.g. outside ${noun} 12` }));
+    body.appendChild(wc);
+
+    // ---- what ----
+    body.appendChild(sectionTitle('What'));
+    const dc = card();
+    dc.appendChild(textareaRow('', state.description, (v) => { state.description = v; refresh(); }, "What's happening? Say it or type it."));
+    body.appendChild(dc);
+    body.appendChild(el('<div class="fhint">Water is hard to see in a photo — a few words help. Please check dictated text before sending.</div>'));
+
+    // ---- call now (urgent) ----
+    const callHolder = el('<div></div>');
+    body.appendChild(callHolder);
+    function drawCall() {
+      callHolder.innerHTML = '';
+      if (state.urgency !== 'now') return;
+      callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Need someone right now?</div>'));
+      const c = card();
+      const ah = afterHoursContact();
+      if (ah) c.appendChild(el(`<a class="navrow" href="${telHref(ah.phone)}"><span class="icon">📞</span><span><b>Call ${esc(ah.role || ah.name)}</b><br><span class="muted" style="font-size:13px">${esc(ah.phone)}${ah.hours ? ' · ' + esc(ah.hours) : ''}</span></span><span class="chev">›</span></a>`));
+      c.appendChild(el(`<a class="navrow" href="${telHref(emergencyNumber)}" style="color:#d0021b"><span class="icon">🆘</span><b>Emergency — call ${esc(emergencyNumber)}</b><span class="chev">›</span></a>`));
+      callHolder.appendChild(c);
+      callHolder.appendChild(el('<div class="fhint">A call gets the response tonight. Sending this report keeps the record.</div>'));
+    }
+    drawCall();
+
+    // ---- reporter + submit ----
+    reporterSection(body, config);
+    const footer = el(`<div>
+      <div class="fhint" style="text-align:center">Goes to your building manager. They'll sort out the details and the category.</div>
+      <div class="ferror" hidden></div>
+      <button class="submitbtn">Send Report</button></div>`);
+    const errEl = footer.querySelector('.ferror'), btn = footer.querySelector('.submitbtn');
+    let attempted = false;
+    const isValid = (d) => details.fullName(d).trim() && d.unitNumber.trim() && state.urgency && state.area &&
+      (state.description.trim() || state.photos.length);
+    function refresh() {
+      const ok = isValid(details.load());
+      errEl.hidden = !attempted || ok;
+      errEl.textContent = `Please choose whether it's happening now, pick an area, and add a photo or a few words. Your name and ${noun} number come from My Details.`;
+    }
+    body.appendChild(footer);
+    const alt = card();
+    const altLink = el('<button class="navrow"><span class="icon">📋</span>Prefer a detailed form?<span class="chev">›</span></button>');
+    altLink.addEventListener('click', () => Pages.reportIssue());
+    alt.appendChild(altLink); body.appendChild(alt);
+    refresh();
+
+    btn.addEventListener('click', async () => {
+      const d = details.load();
+      if (!isValid(d)) { attempted = true; refresh(); errEl.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+      btn.disabled = true; btn.textContent = 'Sending…';
+      const wasNow = state.urgency === 'now';
+      try {
+        const id = incidentID('IR');
+        const resp = await postReport({
+          action: 'submitCapture', code: config.code, incidentID: id,
+          reporterName: details.fullName(d), unitNumber: d.unitNumber, phone: d.phoneNumber, email: d.email,
+          urgency: state.urgency, level: state.level, area: state.area,
+          locationDetail: state.locationDetail, description: state.description, photos: state.photos
+        });
+        delete drafts.capture;
+        let msg = `Reference ${id}.`;
+        if (resp.pendingVerification) msg += '\n\nTo send it to the building manager and receive progress updates, please verify your email address on the My Details page.';
+        else if (resp.deliveredVia === 'email') msg += ' Sent to the building manager by email.';
+        else msg += " It's in the building's register for the manager to pick up.";
+        const ah = wasNow ? afterHoursContact() : null;
+        if (ah) msg += `\n\nIf this needs someone right now, call ${ah.role || ah.name} on ${ah.phone}.`;
+        stopCamera();
+        showAlert("Thank you — it's recorded", msg, goBack);
+      } catch (e) {
+        showAlert('Submission Failed', friendlyError(e) + DRAFT_KEPT);
+        btn.disabled = false; btn.textContent = 'Send Report';
+      }
+    });
+  });
+};

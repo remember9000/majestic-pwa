@@ -254,7 +254,7 @@ function renderTiles(config, blocked) {
     // (content lives inside My Majestic). Checkerboard follows position
     // (warm at 1, 4, 5) — mirrors HomeView.swift.
     ['reportIssue', '📷', label(config, 'reportIssue', 'Report an Issue'), true, 'warm',
-     ['💧', '🏢', '🛡', '🔊'], () => Pages.reportIssue()],
+     ['💧', '🏢', '🛡', '🔊'], () => Pages.captureIssue()],
     ['myReports', REPORTS_ICON_SVG, label(config, 'myReports', 'Updates'), false, 'cool',
      ['🕐', '✔️'], () => Pages.myReports()],
     ['letUsKnow', '💬', label(config, 'letUsKnow', 'Let Us Know'), true, 'cool',

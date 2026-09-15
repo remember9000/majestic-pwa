@@ -357,20 +357,14 @@ Pages.letUsKnow = function () {
   });
 };
 
-// ---------- Report an Issue (own tile since 2026-09-15 — the field moment) ----------
+// ---------- Detailed issue forms (the tile opens Pages.captureIssue) ----------
 Pages.reportIssue = function () {
-  const config = store.config;
-  openPage(label(config, 'reportIssue', 'Report an Issue'), (body) => {
+  openPage('Detailed forms', (body) => {
     const mk = (icon, title, fn) => {
       const b = el(`<button class="navrow"><span class="icon">${icon}</span>${esc(title)}<span class="chev">›</span></button>`);
       b.addEventListener('click', fn);
       return b;
     };
-    const intro = card();
-    intro.appendChild(mk('💬', "Not sure? Tell us what's happened", Pages.generalReport));
-    body.appendChild(intro);
-    body.appendChild(el('<div class="fhint">Describe the problem in your own words and we\'ll suggest the right form.</div>'));
-
     body.appendChild(sectionTitle('Choose a form'));
     const c = card();
     c.appendChild(mk('💧', 'Water Leak', Pages.leak));
