@@ -173,8 +173,6 @@ function renderHome() {
   renderTiles(config, homeState.blocked);
   renderLegal(config);
   loadNotices(config);
-  // content.js (fetchMyReports) parses after app.js — defer past it.
-  setTimeout(() => loadOpenReports(config), 0);
   maybeShowWelcome();
 }
 
@@ -200,31 +198,24 @@ function noticesPillText() {
   const n = homeState.unread - homeState.alertCount;
   return n === 0 ? 'No notices' : n + ' notice' + (n === 1 ? '' : 's');
 }
-function updatesPillText() {
-  if (!homeState.hasResult) return homeState.phase === 'failed' ? "Couldn't check" : 'Checking…';
-  const n = homeState.alertCount;
-  return n === 0 ? 'No updates' : n + ' update' + (n === 1 ? '' : 's');
-}
-
 function renderStrip(config) {
   const urgent = !!homeState.urgentTitle;
   const noticesActive = homeState.hasResult && (urgent || homeState.unread - homeState.alertCount > 0);
-  const updatesActive = homeState.hasResult && homeState.alertCount > 0;
-  const nText = noticesPillText(), uText = updatesPillText();
+  const nText = noticesPillText();
   const holder = $('statusStrip');
+  // One centred pill: building notices + fetch state. The Updates pill
+  // was dropped 2026-09-15 — the Updates tile's red badge carries the
+  // unread count instead (mirrors HomeView.swift).
   holder.innerHTML =
     `<div class="pillrow">
        <button class="colpill${noticesActive ? (urgent ? ' red' : ' navy') : ''}" aria-label="${esc(nText)}. Building notices. Opens notices.">
          <span aria-hidden="true">${MEGAPHONE_SVG}</span>${esc(nText)}</button>
-       <button class="colpill${updatesActive ? ' red' : ''}" aria-label="${esc(uText)}. Updates on your reports. Opens notices.">
-         <span aria-hidden="true">${BELL_SMALL_SVG}</span>${esc(uText)}</button>
      </div>`;
-  holder.querySelectorAll('.colpill').forEach((b, i) => b.addEventListener('click', () => {
-    // A failed check retries in place; Notices pill → Notices page,
-    // Updates pill → Updates page (it sits over the Updates tile).
+  holder.querySelector('.colpill').addEventListener('click', () => {
+    // A failed check retries in place; otherwise open the Notices page.
     if (!homeState.hasResult && homeState.phase === 'failed') { loadNotices(config); return; }
-    i === 0 ? Pages.notices() : Pages.myReports();
-  }));
+    Pages.notices();
+  });
 }
 
 // Tile icons drawn as SVG where no emoji matches the iOS SF Symbol.
@@ -278,8 +269,8 @@ function renderTiles(config, blocked) {
   // Screen readers get just the tile name (icons and sub-icons hidden);
   // the Updates tile carries the open-report count.
   holder.innerHTML = '<div class="tilegrid">' + tiles.map(([key, icon, title, , tone, subs, , descriptor], i) => {
-    const count = key === 'myReports' && homeState.openReports > 0 ? homeState.openReports : 0;
-    const label = count ? `${title}, ${count} open report${count === 1 ? '' : 's'}` : title;
+    const count = key === 'myReports' && homeState.alertCount > 0 ? homeState.alertCount : 0;
+    const label = count ? `${title}, ${count} new update${count === 1 ? '' : 's'}` : title;
     // The building names the button; the platform says what's behind it.
     const under = descriptor
       ? `<span class="tdesc">${esc(descriptor)}</span>`
@@ -398,16 +389,6 @@ async function loadNotices(config) {
     homeState.phase = 'failed';   // cached state (if any) stays on screen
     renderStrip(config);
   }
-}
-
-// Open (not closed) submissions for the strip, mirroring refreshOpenReports.
-async function loadOpenReports(config) {
-  if (typeof fetchMyReports !== 'function') return;
-  try {
-    const reports = await fetchMyReports();
-    homeState.openReports = reports.filter((r) => !r.isClosed).length;
-    renderTiles(config, homeState.blocked);   // count pill on the Updates tile
-  } catch { /* strip just omits the count */ }
 }
 
 // ---------- PWA: service worker + install prompt ----------
@@ -536,7 +517,6 @@ async function boot() {
     if (document.visibilityState === 'visible' && store.config &&
         document.body.dataset.subpage !== '1') {
       loadNotices(store.config);
-      loadOpenReports(store.config);
     }
   });
 
