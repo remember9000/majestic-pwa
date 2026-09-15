@@ -258,32 +258,37 @@ const FAQ_ICON_SVG =
 function renderTiles(config, blocked) {
   const holder = $('navButtons');
   const tiles = [
-    // Order (2026-09-09): Let Us Know | Updates, My Majestic | FAQs,
-    // My Details | Key Contacts. Checkerboard follows position (warm at
-    // 1, 4, 5) — mirrors HomeView.swift.
-    ['letUsKnow', '💬', label(config, 'letUsKnow', 'Let Us Know'), true, 'warm',
-     ['📷', '📝', '🛠', '🔨'], () => Pages.letUsKnow()],
+    // Order (2026-09-15, UI notes step 2): Report an Issue | Updates,
+    // Let Us Know | My Majestic, My Details | Key Contacts. FAQ tile gone
+    // (content lives inside My Majestic). Checkerboard follows position
+    // (warm at 1, 4, 5) — mirrors HomeView.swift.
+    ['reportIssue', '📷', label(config, 'reportIssue', 'Report an Issue'), true, 'warm',
+     ['💧', '🏢', '🛡', '🔊'], () => Pages.reportIssue()],
     ['myReports', REPORTS_ICON_SVG, label(config, 'myReports', 'Updates'), false, 'cool',
      ['🕐', '✔️'], () => Pages.myReports()],
-    ['myBuilding', '🏢', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), false, 'cool',
-     ['🏠', '📖', '🗺', '🔄'], () => Pages.myBuilding()],
-    ['faq', FAQ_ICON_SVG, label(config, 'faq', 'FAQs'), false, 'warm',
-     ['🔍', '💬'], () => Pages.faq()],
+    ['letUsKnow', '💬', label(config, 'letUsKnow', 'Let Us Know'), true, 'cool',
+     ['🔑', '↕️', '🛠', '🔨'], () => Pages.letUsKnow()],
+    ['myBuilding', '🏢', label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), false, 'warm',
+     ['❓', '📖', '🗺', '🔄'], () => Pages.myBuilding(), 'Rules, answers and documents'],
     ['myDetails', DETAILS_ICON_SVG, label(config, 'myDetails', 'My Details'), false, 'warm',
-     ['📞', '✉️', '🚗'], () => Pages.myDetails()],
+     ['📞', '✉️', '🏠'], () => Pages.myDetails()],
     ['contacts', '👥', 'Key Contacts', false, 'cool',
      ['📞', '✉️'], () => Pages.contacts()]
   ].filter(([, , , blockedHidden]) => !(blockedHidden && blocked));
   // Screen readers get just the tile name (icons and sub-icons hidden);
   // the Updates tile carries the open-report count.
-  holder.innerHTML = '<div class="tilegrid">' + tiles.map(([key, icon, title, , tone, subs], i) => {
+  holder.innerHTML = '<div class="tilegrid">' + tiles.map(([key, icon, title, , tone, subs, , descriptor], i) => {
     const count = key === 'myReports' && homeState.openReports > 0 ? homeState.openReports : 0;
     const label = count ? `${title}, ${count} open report${count === 1 ? '' : 's'}` : title;
+    // The building names the button; the platform says what's behind it.
+    const under = descriptor
+      ? `<span class="tdesc">${esc(descriptor)}</span>`
+      : `<span class="tsubs" aria-hidden="true">${subs.map((s) => `<span>${s}</span>`).join('')}</span>`;
     return `<button class="tile ${tone}" data-i="${i}" aria-label="${esc(label)}">
        ${count ? `<span class="tile-count" aria-hidden="true">${count}</span>` : ''}
        <span class="ticon" aria-hidden="true">${icon}</span>
        <span class="tlabel">${esc(title)}</span>
-       <span class="tsubs" aria-hidden="true">${subs.map((s) => `<span>${s}</span>`).join('')}</span>
+       ${under}
      </button>`; }).join('') + '</div>';
   holder.querySelectorAll('.tile').forEach((b, i) => {
     b.addEventListener('click', tiles[i][6]);
@@ -497,6 +502,7 @@ function initPWA() {
 // ---------- settings / change property ----------
 function initChrome() {
   $('gearBtn').addEventListener('click', () => { $('settingsSheet').hidden = false; });
+  $('appHelpBtn').addEventListener('click', () => { $('settingsSheet').hidden = true; Pages.appHelp(); });
   $('settingsCancel').addEventListener('click', () => { $('settingsSheet').hidden = true; });
   $('settingsSheet').addEventListener('click', (e) => { if (e.target === $('settingsSheet')) $('settingsSheet').hidden = true; });
   $('changeProperty').addEventListener('click', () => {

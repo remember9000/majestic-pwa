@@ -114,27 +114,143 @@ const DOC_PAGES = [
   ['Legislation', '🏛', 'legislation']
 ];
 
+// The building's reference body, answers first (UI notes 2026-09-13,
+// item 1): plain-language answers up front, the formal documents they
+// derive from behind them. The button can be renamed per building; the
+// sections inside cannot.
 Pages.myBuilding = function () {
   const config = store.config;
   openPage(label(config, 'myBuilding', 'My ' + (config.appName || 'Building')), (body) => {
-    const mk = (icon, title, fn) => {
-      const b = el(`<button class="navrow"><span class="icon">${icon}</span>${esc(title)}<span class="chev">›</span></button>`);
+    const mk = (icon, title, fn, trailing = '') => {
+      const b = el(`<button class="navrow"><span class="icon">${icon}</span>${esc(title)}${trailing}<span class="chev">›</span></button>`);
       b.addEventListener('click', fn);
       return b;
     };
-    let c = card();
-    c.appendChild(mk('🏠', label(config, 'myUnit', 'My ' + label(config, 'unitNoun', 'Unit')), Pages.myUnit));
-    body.appendChild(c);
+    const search = el('<div class="card"><div class="frow"><input type="text" placeholder="Search rules and answers"></div></div>');
+    const input = search.querySelector('input');
+    body.appendChild(search);
+    const holder = el('<div></div>');
+    body.appendChild(holder);
 
-    c = card();
-    DOC_PAGES.forEach(([title, icon, key]) => c.appendChild(mk(icon, title, () => Pages.document(title, key))));
-    body.appendChild(c);
+    const answers = new AnswersStore(config.code);
 
-    c = card();
-    c.appendChild(mk('🕰', 'History', Pages.history));   // Key Contacts is a home tile now
+    function drawSections() {
+      holder.innerHTML = '';
+      holder.appendChild(sectionTitle('Answers'));
+      let c = card();
+      const topics = answers.topics();
+      if (!topics.length) {
+        c.appendChild(el(`<div class="frow muted" style="font-size:15px">${answers.loaded ? 'Answers are being prepared — check back soon.' : 'Loading answers…'}</div>`));
+      } else {
+        topics.forEach((t) => c.appendChild(mk('', t,
+          () => Pages.answerTopic(t, answers),
+          `<span class="muted" style="margin-left:auto;font-size:13px">${answers.inTopic(t).length}</span>`)));
+      }
+      holder.appendChild(c);
+      holder.appendChild(el('<div class="fhint">Plain-language answers about living here. The documents below are the source.</div>'));
+
+      holder.appendChild(sectionTitle('Documents'));
+      c = card();
+      DOC_PAGES.forEach(([title, icon, key]) => c.appendChild(mk(icon, title, () => Pages.document(title, key))));
+      c.appendChild(mk('🕰', 'History', Pages.history));
+      holder.appendChild(c);
+    }
+
+    function drawSearch(q) {
+      holder.innerHTML = '';
+      holder.appendChild(sectionTitle('Answers'));
+      const hits = answers.matches(q);
+      const c = card();
+      if (!hits.length) {
+        c.appendChild(el(`<div class="frow muted" style="font-size:15px">No answers match “${esc(q)}”.</div>`));
+      } else {
+        hits.forEach((it) => c.appendChild(answerRow(it, true)));
+      }
+      holder.appendChild(c);
+    }
+
+    const draw = () => { const q = input.value.trim(); q ? drawSearch(q) : drawSections(); };
+    input.addEventListener('input', draw);
+    answers.onChange = draw;
+    draw();
+    answers.load();
+  });
+};
+
+// One expandable question → answer row, with "Open …" cross-links.
+function answerRow(it, showTopic) {
+  const qa = el(`<div class="frow faqitem">${showTopic ? `<div class="muted" style="font-size:12px">${esc(it.category)}</div>` : ''}
+    <div class="faqq">${esc(it.question)}</div>
+    <div class="faqa" hidden>${esc(it.answer)}</div></div>`);
+  const answerEl = qa.querySelector('.faqa');
+  faqPageLinks(it.answer).forEach((lnk) => {
+    const b = el(`<button class="faq-link">${esc(lnk.icon)} Open ${esc(lnk.title)} ›</button>`);
+    b.addEventListener('click', (e) => { e.stopPropagation(); lnk.open(); });
+    answerEl.appendChild(b);
+  });
+  qa.addEventListener('click', () => { answerEl.hidden = !answerEl.hidden; });
+  return qa;
+}
+
+// Second level of Answers: the questions within one topic.
+Pages.answerTopic = function (topic, answers) {
+  openPage(topic, (body) => {
+    const c = card();
+    answers.inTopic(topic).forEach((it) => c.appendChild(answerRow(it, false)));
     body.appendChild(c);
   });
 };
+
+// Platform-level help about the app itself — from the gear menu. Same at
+// every building, so it never names a building's custom button labels.
+Pages.appHelp = function () {
+  openPage('Help with the app', (body) => {
+    const answers = new AnswersStore(store.config.code);
+    const c = card();
+    body.appendChild(c);
+    const draw = () => {
+      c.innerHTML = '';
+      const items = answers.appHelp();
+      if (!items.length) {
+        c.appendChild(el(`<div class="frow muted" style="font-size:15px">${answers.loaded ? 'Help for the app is being prepared — check back soon.' : 'Loading…'}</div>`));
+        return;
+      }
+      items.forEach((it) => c.appendChild(answerRow(it, false)));
+    };
+    answers.onChange = draw;
+    draw();
+    answers.load();
+  });
+};
+
+// Cache-first FAQ loader shared by My Majestic and app help. The one
+// category written by the platform ("The App") is split out here.
+class AnswersStore {
+  constructor(code) {
+    this.code = code; this.items = []; this.loaded = false; this.onChange = null;
+    try { this.items = JSON.parse(localStorage.getItem('faq-' + code)) || []; } catch { this.items = []; }
+  }
+  static isAppHelp(it) {
+    const c = String(it.category || '').trim().toLowerCase();
+    return c === 'the app' || c === 'app' || c === 'app help' || c === 'about the app';
+  }
+  building() { return this.items.filter((it) => !AnswersStore.isAppHelp(it)); }
+  appHelp() { return this.items.filter(AnswersStore.isAppHelp); }
+  topics() { const seen = []; this.building().forEach((it) => { if (!seen.includes(it.category)) seen.push(it.category); }); return seen; }
+  inTopic(t) { return this.building().filter((it) => it.category === t); }
+  matches(q) {
+    const s = q.toLowerCase();
+    return this.building().filter((it) => (it.question + ' ' + it.answer + ' ' + it.category).toLowerCase().includes(s));
+  }
+  load() {
+    backendJSON({ action: 'faq', code: this.code }).then((j) => {
+      this.items = j.faq || [];
+      localStorage.setItem('faq-' + this.code, JSON.stringify(this.items));
+      this.loaded = true;
+      if (this.onChange) this.onChange();
+    }).catch(() => { this.loaded = true; if (this.onChange) this.onChange(); });
+  }
+}
 
 // ---------- document viewer ----------
 Pages.document = function (title, docKey) {
@@ -162,7 +278,7 @@ Pages.myUnit = function () {
   const config = store.config;
   const noun = label(config, 'unitNoun', 'Unit');
   const unitNumber = details.load().unitNumber.trim();
-  openPage(label(config, 'myUnit', 'My ' + noun) + (unitNumber ? ' — ' + unitNumber : ''), (body) => {
+  openPage('My Home' + (unitNumber ? ' — ' + unitNumber : ''), (body) => {   // fixed label (UI notes item 2)
     if (!unitNumber) {
       const c = card();
       c.appendChild(el(`<div class="frow muted" style="font-size:15px">Enter your ${esc(noun.toLowerCase())} number on the My Details page first, so we know which ${esc(noun.toLowerCase())} to show.</div>`));
@@ -331,95 +447,13 @@ function faqPageLinks(answer) {
   const luk = label(config, 'letUsKnow', 'Let Us Know');
   add(luk, '💬', [luk, 'Let Us Know'], () => Pages.letUsKnow());
   const unitNoun = label(config, 'unitNoun', 'Unit');
-  const myUnit = label(config, 'myUnit', 'My ' + unitNoun);
-  add(myUnit, '🏠', [myUnit, 'My Unit'], () => Pages.myUnit());
+  add('My Home', '🏠', ['My Home', 'My Unit', 'My ' + unitNoun], () => Pages.myUnit());
   const myDetails = label(config, 'myDetails', 'My Details');
   add(myDetails, '🪪', [myDetails, 'My Details'], () => Pages.myDetails());
   return out;
 }
 
-Pages.faq = function () {
-  const config = store.config;
-  openPage(label(config, 'faq', 'Frequently Asked Questions'), (body) => {
-    const search = el('<div class="card"><div class="frow"><input type="text" placeholder="Search FAQs"></div></div>');
-    const input = search.querySelector('input');
-    const holder = el('<div><div class="fhint" style="text-align:center">Loading…</div></div>');
-    body.appendChild(search);
-    body.appendChild(holder);
-
-    let items = [];
-    const openCats = new Set();
-    const cacheKey = 'faq-' + config.code;
-
-    function grouped(list) {
-      const order = [];
-      const map = {};
-      list.forEach((it) => {
-        if (!map[it.category]) { order.push(it.category); map[it.category] = []; }
-        map[it.category].push(it);
-      });
-      return order.map((catName) => ({ category: catName, items: map[catName] }));
-    }
-
-    function render() {
-      const q = input.value.trim().toLowerCase();
-      const filtered = q
-        ? items.filter((it) => (it.question + ' ' + it.answer + ' ' + it.category).toLowerCase().includes(q))
-        : items;
-      holder.innerHTML = '';
-      if (!items.length) {
-        const c = card();
-        c.appendChild(el('<div class="frow muted" style="font-size:15px">FAQs are being prepared — check back soon.</div>'));
-        holder.appendChild(c);
-        return;
-      }
-      if (!filtered.length) {
-        const c = card();
-        c.appendChild(el(`<div class="frow muted" style="font-size:15px">No questions match “${esc(input.value.trim())}”.</div>`));
-        holder.appendChild(c);
-        return;
-      }
-      grouped(filtered).forEach((group) => {
-        const isOpen = q ? true : openCats.has(group.category);
-        const c = card();
-        const head = el(`<button class="navrow"><b>${esc(group.category)}</b>
-          <span class="chev">${isOpen ? '⌄' : '›'}</span></button>`);
-        head.addEventListener('click', () => {
-          openCats.has(group.category) ? openCats.delete(group.category) : openCats.add(group.category);
-          render();
-        });
-        c.appendChild(head);
-        if (isOpen) {
-          group.items.forEach((it) => {
-            const qa = el(`<div class="frow faqitem"><div class="faqq">${esc(it.question)}</div>
-              <div class="faqa" hidden>${esc(it.answer)}</div></div>`);
-            // An answer that says "go to Key Contacts" should take you there.
-            const answerEl = qa.querySelector('.faqa');
-            faqPageLinks(it.answer).forEach((lnk) => {
-              const b = el(`<button class="faq-link">${esc(lnk.icon)} Open ${esc(lnk.title)} ›</button>`);
-              b.addEventListener('click', (e) => { e.stopPropagation(); lnk.open(); });
-              answerEl.appendChild(b);
-            });
-            qa.addEventListener('click', () => {
-              answerEl.hidden = !answerEl.hidden;
-            });
-            c.appendChild(qa);
-          });
-        }
-        holder.appendChild(c);
-      });
-    }
-
-    input.addEventListener('input', render);
-
-    try { items = JSON.parse(localStorage.getItem(cacheKey)) || []; render(); } catch { /* no cache */ }
-    backendJSON({ action: 'faq', code: config.code }).then((j) => {
-      items = j.faq || [];
-      localStorage.setItem(cacheKey, JSON.stringify(items));
-      render();
-    }).catch(() => { if (!items.length) holder.innerHTML = '<div class="ferror">Couldn\'t load the FAQs.</div>'; });
-  });
-};
+// (Pages.faq removed 2026-09-15 — answers live inside My Majestic; see AnswersStore)
 
 
 // ---------- My Reports ----------

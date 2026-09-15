@@ -609,3 +609,11 @@ div:first-child > .faq-suggest { border-top: none; }
 .modal-actions .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
 .modal-actions .btn-primary { background: var(--primary); color: #fff; }
 .modal-actions .btn-primary:disabled { opacity: .5; }
+
+/* Home button on subpages (mirrors the iOS house toolbar button) */
+.homebtn {
+  position: absolute; right: 10px; bottom: 6px;
+  background: none; border: 0; color: #fff; font-size: 24px; line-height: 1; padding: 4px 8px;
+}
+/* Platform-controlled descriptor under a building-named tile */
+.tile .tdesc { font-size: 11px; color: #6e6e73; line-height: 1.2; }

@@ -81,6 +81,15 @@ function goBack() {
   renderHome();
 }
 $('backBtn').addEventListener('click', goBack);
+// One tap to the tile grid from any depth (UI notes 2026-09-13, item 3).
+function goHome() {
+  pageStack = [];
+  delete document.body.dataset.subpage;
+  $('page').hidden = true;
+  renderHome();
+  window.scrollTo(0, 0);
+}
+$('homeBtn').addEventListener('click', goHome);
 
 function showAlert(title, msg, onClose) {
   $('alertTitle').textContent = title;
@@ -330,22 +339,8 @@ Pages.letUsKnow = function () {
       return b;
     };
 
-    let intro = card();
-    intro.appendChild(mk('💬', "Not sure? Tell us what's happened", Pages.generalReport));
-    body.appendChild(intro);
-    body.appendChild(el('<div class="fhint">Describe the problem in your own words and we\'ll suggest the right form.</div>'));
-
-    body.appendChild(sectionTitle(label(config, 'reportIssue', 'Report an Issue')));
-    let c = card();
-    c.appendChild(mk('💧', 'Water Leak', Pages.leak));
-    c.appendChild(mk('🏢', 'Common Property', Pages.damage));
-    c.appendChild(mk('🛡', 'Security', Pages.security));
-    c.appendChild(mk('🔊', 'Noise', Pages.noise));
-    c.appendChild(mk('🪧', 'Public Property', Pages.publicProperty));
-    body.appendChild(c);
-
     body.appendChild(sectionTitle(label(config, 'makeRequest', 'Make a Request')));
-    c = card();
+    let c = card();
     c.appendChild(mk('🔑', 'Request an Access Pass', Pages.accessPass));
     c.appendChild(mk('↕️', 'Book the Lift', Pages.elevator));
     // Only buildings that list amenities in the sheet get this.
@@ -358,6 +353,31 @@ Pages.letUsKnow = function () {
     c = card();
     c.appendChild(mk('🔧', 'My Trade(s) Will Be On-Site', Pages.trades));
     c.appendChild(mk('🔨', 'My Upcoming Renovations', Pages.renovation));
+    body.appendChild(c);
+  });
+};
+
+// ---------- Report an Issue (own tile since 2026-09-15 — the field moment) ----------
+Pages.reportIssue = function () {
+  const config = store.config;
+  openPage(label(config, 'reportIssue', 'Report an Issue'), (body) => {
+    const mk = (icon, title, fn) => {
+      const b = el(`<button class="navrow"><span class="icon">${icon}</span>${esc(title)}<span class="chev">›</span></button>`);
+      b.addEventListener('click', fn);
+      return b;
+    };
+    const intro = card();
+    intro.appendChild(mk('💬', "Not sure? Tell us what's happened", Pages.generalReport));
+    body.appendChild(intro);
+    body.appendChild(el('<div class="fhint">Describe the problem in your own words and we\'ll suggest the right form.</div>'));
+
+    body.appendChild(sectionTitle('Choose a form'));
+    const c = card();
+    c.appendChild(mk('💧', 'Water Leak', Pages.leak));
+    c.appendChild(mk('🏢', 'Common Property', Pages.damage));
+    c.appendChild(mk('🛡', 'Security', Pages.security));
+    c.appendChild(mk('🔊', 'Noise', Pages.noise));
+    c.appendChild(mk('🪧', 'Public Property', Pages.publicProperty));
     body.appendChild(c);
   });
 };
@@ -424,7 +444,7 @@ Pages.myDetails = function () {
       const unit = details.load().unitNumber.trim();
       unitLink.hidden = !unit;
       unitLink.querySelector('.unitlink-text').textContent =
-        `Shut-off valve, meters and boundaries for ${noun.toLowerCase()} ${unit}`;
+        'My Home — shut-off valve, meters and boundaries';
     };
     updateAddrPreview();
     body.appendChild(c);
