@@ -394,7 +394,9 @@ function afterHoursContact() {
   let list = [];
   try { list = JSON.parse(localStorage.getItem('contacts-' + store.config.code)) || []; } catch { list = []; }
   const real = list.filter((c) => !c.emergency && c.phone);
-  return real.find((c) => /after|24/i.test(c.role + ' ' + c.hours + ' ' + c.notes)) || real[0] || null;
+  const match = (re) => real.find((c) => re.test(c.role + ' ' + c.hours + ' ' + c.notes));
+  // after-hours line → security → building manager/caretaker → anyone (roster later, item 12)
+  return match(/after|24/i) || match(/security/i) || match(/building manager|caretaker/i) || real[0] || null;
 }
 const telHref = (p) => 'tel:' + String(p || '').replace(/[^0-9+]/g, '');
 
