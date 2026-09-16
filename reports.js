@@ -393,7 +393,7 @@ function captureList(key, dflt) {
 function afterHoursContact() {
   let list = [];
   try { list = JSON.parse(localStorage.getItem('contacts-' + store.config.code)) || []; } catch { list = []; }
-  const real = list.filter((c) => !c.emergency && c.phone);
+  const real = list.filter((c) => c.phone);   // Emergency-flagged rows (Scotia 24h) are wanted here; 000 is separate
   const match = (re) => real.find((c) => re.test(c.role + ' ' + c.hours + ' ' + c.notes));
   // after-hours line → security → building manager/caretaker → anyone (roster later, item 12)
   return match(/after|24/i) || match(/security/i) || match(/building manager|caretaker/i) || real[0] || null;
@@ -522,7 +522,7 @@ Pages.captureIssue = function () {
       callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Need someone right now?</div>'));
       const c = card();
       const ah = afterHoursContact();
-      if (ah) c.appendChild(el(`<a class="navrow" href="${telHref(ah.phone)}"><span class="icon">📞</span><span><b>Call ${esc(ah.role || ah.name)}</b><br><span class="muted" style="font-size:13px">${esc(ah.phone)}${ah.hours ? ' · ' + esc(ah.hours) : ''}</span></span><span class="chev">›</span></a>`));
+      if (ah) c.appendChild(el(`<a class="navrow" href="${telHref(ah.phone)}"><span class="icon">📞</span><span><b>Call ${esc(ah.name || ah.role)}</b><br><span class="muted" style="font-size:13px">${[ah.name ? ah.role : '', ah.phone, ah.hours].filter(Boolean).map(esc).join(' · ')}</span></span><span class="chev">›</span></a>`));
       c.appendChild(el(`<a class="navrow" href="${telHref(emergencyNumber)}" style="color:#d0021b"><span class="icon">🆘</span><b>Emergency — call ${esc(emergencyNumber)}</b><span class="chev">›</span></a>`));
       callHolder.appendChild(c);
       callHolder.appendChild(el('<div class="fhint">A call gets the response tonight. Sending this report keeps the record.</div>'));
@@ -570,7 +570,7 @@ Pages.captureIssue = function () {
         else if (resp.deliveredVia === 'email') msg += ' Sent to the building manager by email.';
         else msg += " It's in the building's register for the manager to pick up.";
         const ah = wasNow ? afterHoursContact() : null;
-        if (ah) msg += `\n\nIf this needs someone right now, call ${ah.role || ah.name} on ${ah.phone}.`;
+        if (ah) msg += `\n\nIf this needs someone right now, call ${ah.name || ah.role} on ${ah.phone}.`;
         stopCamera();
         showAlert("Thank you — it's recorded", msg, goBack);
       } catch (e) {
