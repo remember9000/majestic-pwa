@@ -644,3 +644,9 @@ div:first-child > .faq-suggest { border-top: none; }
 .urgbtn.navy { background: var(--primary); color: #fff; }
 .urgbtn.red { background: #ff3b30; color: #fff; }
 a.navrow { text-decoration: none; color: inherit; display: flex; align-items: center; }
+
+/* Your Details as plain text (pills retired 2026-09-16) */
+.reporter-lines { padding: 11px 16px; }
+.reporter-l1 { font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reporter-l2 { font-size: 14px; color: #6e6e73; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; }
+.updetails a.add { color: #d0021b; font-weight: 700; }

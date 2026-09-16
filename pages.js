@@ -185,21 +185,17 @@ function reporterSection(container, config) {
   container.appendChild(sectionTitle('Your Details'));
   const c = card();
   const name = details.fullName(d);
-  if (name || d.unitNumber || d.phoneNumber || d.email) {
-    const bub = el('<div class="bubbles"></div>');
-    if (name) bub.appendChild(el(`<span class="bubble">${esc(name)}</span>`));
-    if (d.unitNumber) bub.appendChild(el(`<span class="bubble">${esc(noun + ' ' + d.unitNumber)}</span>`));
-    if (d.phoneNumber) bub.appendChild(el(`<span class="bubble">${esc(d.phoneNumber)}</span>`));
-    if (d.email) bub.appendChild(el(`<span class="bubble">${esc(d.email)}</span>`));
-    c.appendChild(bub);
-  }
-  if (!name.trim() || !d.unitNumber.trim()) {
-    const warn = el(`<div class="warnrow">⚠ <a href="#">Add your name and ${esc(noun.toLowerCase())} number in My Details</a></div>`);
-    warn.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); Pages.myDetails(); });
-    c.appendChild(warn);
-  }
+  const hasRequired = !!(name.trim() && d.unitNumber.trim());
+  // Plain text, not pills (2026-09-16): name · unit, then phone · email.
+  const line1 = [name, d.unitNumber ? noun + ' ' + d.unitNumber : ''].filter(Boolean).join(' · ');
+  const line2 = [d.phoneNumber, d.email].filter(Boolean).join(' · ');
+  const lines = el('<div class="reporter-lines"></div>');
+  if (line1) lines.appendChild(el(`<div class="reporter-l1">${esc(line1)}</div>`));
+  if (line2) lines.appendChild(el(`<div class="reporter-l2">${esc(line2)}</div>`));
+  if (!hasRequired) lines.appendChild(el(`<div class="reporter-l2">Your name and ${esc(noun.toLowerCase())} number are needed so the manager knows who to contact.</div>`));
+  c.appendChild(lines);
   container.appendChild(c);
-  const up = el('<div class="updetails"><a href="#">Update details</a></div>');
+  const up = el(`<div class="updetails"><a href="#" class="${hasRequired ? '' : 'add'}">${hasRequired ? 'Update details' : 'Add details'}</a></div>`);
   up.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); Pages.myDetails(); });
   container.appendChild(up);
 }
