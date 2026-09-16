@@ -576,6 +576,12 @@ Pages.captureIssue = function () {
         if (resp.pendingVerification) msg += '\n\nTo send it to the building manager and receive progress updates, please verify your email address on the My Details page.';
         else if (resp.deliveredVia === 'email') msg += ' Sent to the building manager by email.';
         else msg += " It's in the building's register for the manager to pick up.";
+        if (resp.escalation && resp.escalation.contact) {
+          const e = resp.escalation;
+          msg += `\n\nAlerted ${e.contact} by ${e.channel}.`;
+          if (e.minutes > 0 && e.next) msg += ` If nobody acknowledges within ${e.minutes} minutes it goes to ${e.next}.`;
+          msg += " You'll get an update here when someone picks it up.";
+        }
         const ah = wasNow ? afterHoursContact() : null;
         if (ah) msg += `\n\nIf this needs someone right now, call ${ah.name || ah.role} on ${ah.phone}.`;
         stopCamera();
