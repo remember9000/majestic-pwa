@@ -520,12 +520,19 @@ Pages.captureIssue = function () {
       callHolder.innerHTML = '';
       if (state.urgency !== 'now') return;
       callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Need someone right now?</div>'));
-      const c = card();
       const ah = afterHoursContact();
-      if (ah) c.appendChild(el(`<a class="navrow" href="${telHref(ah.phone)}"><span class="icon">📞</span><span><b>Call ${esc(ah.name || ah.role)}</b><br><span class="muted" style="font-size:13px">${[ah.name ? ah.role : '', ah.phone, hoursText(ah.hours)].filter(Boolean).map(esc).join(' · ')}</span></span><span class="chev">›</span></a>`));
-      c.appendChild(el(`<a class="navrow" href="${telHref(emergencyNumber)}" style="color:#d0021b"><span class="icon">🆘</span><b>Emergency — call ${esc(emergencyNumber)}</b><span class="chev">›</span></a>`));
-      callHolder.appendChild(c);
+      if (ah) {
+        const c = card();
+        c.appendChild(el(`<a class="navrow" href="${telHref(ah.phone)}"><span class="icon">📞</span><span><b>Call ${esc(ah.name || ah.role)}</b><br><span class="muted" style="font-size:13px">${[ah.name ? ah.role : '', ah.phone, hoursText(ah.hours)].filter(Boolean).map(esc).join(' · ')}</span></span><span class="chev">›</span></a>`));
+        callHolder.appendChild(c);
+      }
       callHolder.appendChild(el('<div class="fhint">A call gets the response tonight. Sending this report keeps the record.</div>'));
+      // 000 in its own card, well clear of the after-hours row — a fat
+      // finger on it is not a small mistake.
+      callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Emergency</div>'));
+      const e = card();
+      e.appendChild(el(`<a class="navrow" href="${telHref(emergencyNumber)}" style="color:#d0021b"><span class="icon">🆘</span><b>Fire, flood, gas or safety — call ${esc(emergencyNumber)}</b><span class="chev">›</span></a>`));
+      callHolder.appendChild(e);
     }
     drawCall();
 
