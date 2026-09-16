@@ -691,7 +691,7 @@ function contactCard(list) {
       <div class="contact-title">${esc(title)}</div>
       ${sub ? `<div class="contact-name">${esc(sub)}</div>` : ''}
       ${ct.notes ? `<div class="contact-notes">${esc(ct.notes)}</div>` : ''}
-      ${ct.hours ? `<div class="contact-hours">🕘 ${esc(ct.hours)}</div>` : ''}
+      ${hoursText(ct.hours) ? `<div class="contact-hours">🕘 ${esc(hoursText(ct.hours))}</div>` : ''}
     </div>`);
     // Tap targets — the point of the page.
     if (ct.phone) {

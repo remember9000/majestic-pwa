@@ -57,6 +57,12 @@ const store = {
 };
 
 // config label override, mirroring AppConfig.label(_:default:)
+// Hours cells typed as "24 Hours" get auto-converted to a date by Sheets.
+function hoursText(h) {
+  h = String(h || '').trim();
+  return (/GMT|\d{4} \d\d:\d\d:\d\d/.test(h)) ? '24 hours' : h;
+}
+
 function label(config, key, dflt) {
   const v = ((config.settings || {})['label.' + key] || '').trim();
   return v || dflt;
