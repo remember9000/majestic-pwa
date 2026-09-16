@@ -513,9 +513,8 @@ Pages.captureIssue = function () {
     body.appendChild(dc);
     body.appendChild(el('<div class="fhint">Water is hard to see in a photo — a few words help. Please check dictated text before sending.</div>'));
 
-    // ---- call now (urgent) ----
+    // ---- call now (urgent) — rendered below the form, see after the detailed-forms link ----
     const callHolder = el('<div></div>');
-    body.appendChild(callHolder);
     function drawCall() {
       callHolder.innerHTML = '';
       if (state.urgency !== 'now') return;
@@ -556,6 +555,7 @@ Pages.captureIssue = function () {
     const altLink = el('<button class="navrow"><span class="icon">📋</span>Prefer a detailed form?<span class="chev">›</span></button>');
     altLink.addEventListener('click', () => Pages.reportIssue());
     alt.appendChild(altLink); body.appendChild(alt);
+    body.appendChild(callHolder);
     refresh();
 
     btn.addEventListener('click', async () => {
