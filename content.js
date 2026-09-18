@@ -381,7 +381,12 @@ Pages.historyPDF = function (item) {
 };
 
 // full-screen swipeable image carousel (scroll-snap)
-function openCarousel(config, images, startID) {
+function openCarousel(config, images, startID, loader) {
+  // loader(item) → Promise<base64>; defaults to the History media fetch.
+  loader = loader || ((item) => cachedMedia('hist-' + item.id + '-' + item.version, async () => {
+    const j = await backendJSON({ action: 'historyItem', code: config.code, id: item.id });
+    return j.base64;
+  }));
   const overlay = el(`<div id="carousel">
       <button class="car-close">✕</button>
       <div class="car-track"></div>
@@ -403,10 +408,7 @@ function openCarousel(config, images, startID) {
     if (slide.dataset.loaded) return;
     slide.dataset.loaded = '1';
     const item = images.find((i) => i.id === slide.dataset.id);
-    cachedMedia('hist-' + item.id + '-' + item.version, async () => {
-      const j = await backendJSON({ action: 'historyItem', code: config.code, id: item.id });
-      return j.base64;
-    }).then((b64) => {
+    loader(item).then((b64) => {
       slide.innerHTML = `<img src="data:image/jpeg;base64,${b64}" alt="">`;
     }).catch(() => { slide.innerHTML = '<div class="car-spin">Couldn\'t load</div>'; });
   };
@@ -546,6 +548,39 @@ Pages.myReports = function () {
   });
 };
 
+// The resident's own photos on a report: thumbnail grid → carousel.
+// Device-scoped by the backend; the section is hidden when there are none.
+function reportPhotosSection(body, rep) {
+  const config = store.config;
+  const holder = el('<div></div>');
+  body.appendChild(holder);
+  const q = { action: 'myReportPhotos', code: config.code, deviceId: store.deviceId, ref: rep.reference };
+  backendJSON(q).then((j) => {
+    const photos = j.photos || [];
+    if (!photos.length) return;
+    holder.appendChild(sectionTitle('Photos'));
+    const c = card();
+    const grid = el('<div class="rphotos"></div>');
+    const images = photos.map((p, i) => ({ id: p.id, version: p.version, title: `Photo ${i + 1} of ${photos.length}`, date: '' }));
+    const loader = (item) => cachedMedia('rphoto-' + item.id + '-' + item.version, async () => {
+      const r = await backendJSON({ action: 'myReportPhoto', code: config.code, deviceId: store.deviceId, ref: rep.reference, id: item.id });
+      return r.base64;
+    });
+    photos.forEach((p) => {
+      const cell = el(`<button type="button" class="rphoto" aria-label="Photo"><span class="car-spin">…</span></button>`);
+      cell.addEventListener('click', () => openCarousel(config, images, p.id, loader));
+      grid.appendChild(cell);
+      cachedMedia('rthumb-' + p.id + '-' + p.version, async () => {
+        const t = await backendJSON({ action: 'myReportThumb', code: config.code, deviceId: store.deviceId, ref: rep.reference, id: p.id });
+        return t.base64;
+      }).then((b64) => { cell.innerHTML = `<img src="data:image/jpeg;base64,${b64}" alt="">`; })
+        .catch(() => { cell.innerHTML = '<span class="car-spin">✕</span>'; });
+    });
+    c.appendChild(grid);
+    holder.appendChild(c);
+  }).catch(() => { /* no photos section */ });
+}
+
 // Repeat-incident log for noise reports — "this happened again", one tap,
 // timestamped. Replaces the audio recorder (removed 2026-09-13).
 function repeatSection(body, rep) {
@@ -644,6 +679,8 @@ Pages.myReportDetail = function (rep) {
       body.appendChild(w);
       body.appendChild(el('<div class="fhint">This submission is recorded but hasn\'t been sent to the building manager yet. Verifying your email releases it.</div>'));
     }
+
+    reportPhotosSection(body, rep);
 
     if (rep.type === 'Noise' && !rep.isClosed) repeatSection(body, rep);
 
