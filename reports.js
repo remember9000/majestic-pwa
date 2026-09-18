@@ -385,8 +385,12 @@ Pages.publicProperty = function () {
 const CAPTURE_LEVELS = ['Basement', 'Ground', 'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Roof'];
 const CAPTURE_AREAS = ['Car park', 'Lobby', 'Corridor', 'Lift', 'Bin room', 'Stairwell',
   'Roof', 'Plant room', 'Pool', 'Garden / Grounds', 'Building exterior', 'Other'];
-// One question, two answers (2026-09-18): "now" starts the escalation chain.
-const URGENCY = [['now', '⚠️', 'Needs someone now'], ['later', '🕘', 'Can wait']];
+// One question, two service levels (2026-09-18): Standard first, Urgent
+// starts the escalation chain. Subtitles/footers come from Settings JSON
+// so the app never quotes a time the building hasn't agreed to.
+const URGENCY = [['later', '🕘', 'Standard', 'responseStandard', 'Reply within 4 business hours'],
+                 ['now', '⚠️', 'Urgent', 'responseUrgent', 'Someone attends now']];
+function setting(key, dflt) { const v = String((store.config.settings || {})[key] || '').trim(); return v || dflt; }
 function captureList(key, dflt) {
   const raw = ((store.config.settings || {})[key] || '').split(',').map((s) => s.trim()).filter(Boolean);
   return raw.length ? raw : dflt;
@@ -482,19 +486,21 @@ Pages.captureIssue = function () {
     obs.observe($('page'), { childList: true, subtree: true });
 
     // ---- urgency ----
-    body.appendChild(sectionTitle('Does someone need to attend now? *'));
+    body.appendChild(sectionTitle('How urgent is it? *'));
     const urow = el('<div class="urgrow"></div>');   // no card: three separate buttons
     const ufoot = el('<div class="fhint"></div>');
     const drawUrgency = () => {
       urow.innerHTML = '';
-      URGENCY.forEach(([key, icon, title]) => {
-        const b = el(`<button type="button" class="urgbtn${state.urgency === key ? (key === 'now' ? ' red' : ' navy') : ''}"><span>${icon}</span>${esc(title)}</button>`);
+      URGENCY.forEach(([key, icon, title, subKey, subDefault]) => {
+        const b = el(`<button type="button" class="urgbtn${state.urgency === key ? (key === 'now' ? ' red' : ' navy') : ''}"><span>${icon}</span><b>${esc(title)}</b><small>${esc(setting(subKey, subDefault))}</small></button>`);
         b.addEventListener('click', () => { state.urgency = key; drawUrgency(); drawCall(); refresh(); });
         urow.appendChild(b);
       });
       ufoot.textContent = state.urgency === 'now'
-        ? `Marked urgent — someone will be alerted straight away. Fire, flood, gas or personal safety: call ${emergencyNumber} first.`
-        : "Water running now versus a stain on the ceiling is the difference between a callout tonight and a job next week. Say how long it's been going on in the description.";
+        ? setting('responseUrgentDetail', 'The on-duty contact is alerted straight away and must acknowledge within 15 minutes.') + ` Fire, gas or life at risk: call ${emergencyNumber} first.`
+        : state.urgency === 'later'
+          ? setting('responseStandardDetail', "You'll hear back within 4 business hours, and the manager may still attend sooner.")
+          : setting('responseGuidance', 'Most reports are Standard: damage, cleaning, maintenance. Urgent is for an active leak, a break-in, a broken entry door, or someone hurt.');
     };
     body.appendChild(urow); body.appendChild(ufoot); drawUrgency();
 
@@ -548,7 +554,7 @@ Pages.captureIssue = function () {
     function refresh() {
       const ok = isValid(details.load());
       errEl.hidden = !attempted || ok;
-      errEl.textContent = `Please say whether someone needs to attend now, pick an area, and add a photo or a few words. Your name and ${noun} number come from My Details.`;
+      errEl.textContent = `Please choose Standard or Urgent, pick an area, and add a photo or a few words. Your name and ${noun} number come from My Details.`;
     }
     body.appendChild(footer);
     const alt = card();
