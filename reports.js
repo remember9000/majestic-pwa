@@ -382,8 +382,8 @@ Pages.publicProperty = function () {
 // Camera-first, never camera-mandatory: live preview on top (getUserMedia),
 // the form right below. One triage question, structured location, the
 // resident's own words. No type — the manager classifies (item 11).
-const CAPTURE_LEVELS = ['Basement', 'Ground', 'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Roof'];
-const CAPTURE_AREAS = ['Car park', 'Lobby', 'Corridor', 'Lift', 'Bin room', 'Stairwell',
+// Level picker dropped 2026-09-18 (floor goes in "Where exactly?"); "Other" makes it required.
+const CAPTURE_AREAS = ['Car park', 'Basement', 'Lobby', 'Corridor', 'Lift', 'Bin room', 'Stairwell',
   'Roof', 'Plant room', 'Pool', 'Garden / Grounds', 'Building exterior', 'Other'];
 // One question, two service levels (2026-09-18): Standard first, Urgent
 // starts the escalation chain. Subtitles/footers come from Settings JSON
@@ -507,11 +507,13 @@ Pages.captureIssue = function () {
     // ---- where ----
     body.appendChild(sectionTitle('Where'));
     const wc = card();
-    wc.appendChild(selectRow('Level', captureList('captureLevels', CAPTURE_LEVELS), state.level, (v) => { state.level = v; }, 'Choose…'));
     const areaRow = selectRow('Area *', ['My ' + noun].concat(captureList('captureAreas', CAPTURE_AREAS)), state.area, (v) => { state.area = v; refresh(); }, 'Choose…');
     wc.appendChild(areaRow);
-    wc.appendChild(textRow('Where exactly?', state.locationDetail, (i) => { state.locationDetail = i.value; }, { placeholder: `e.g. outside ${noun} 12` }));
+    const whereRow = textRow('Where exactly?', state.locationDetail, (i) => { state.locationDetail = i.value; refresh(); }, { placeholder: `e.g. level 2, outside ${noun} 12` });
+    wc.appendChild(whereRow);
     body.appendChild(wc);
+    const whereHint = el('<div class="fhint"></div>');
+    body.appendChild(whereHint);
 
     // ---- what ----
     body.appendChild(sectionTitle('What'));
@@ -552,14 +554,19 @@ Pages.captureIssue = function () {
     const errEl = footer.querySelector('.ferror'), btn = footer.querySelector('.submitbtn');
     let attempted = false;
     const isValid = (d) => details.fullName(d).trim() && d.unitNumber.trim() && state.urgency && state.area &&
+      !(state.area === 'Other' && !state.locationDetail.trim()) &&
       (state.description.trim() || state.photos.length);
     function refresh() {
       const ok = isValid(details.load());
       // Red outline on required fields until filled (words or a photo for What).
       areaRow.classList.toggle('needs', !state.area);
+      const needsWhere = state.area === 'Other';
+      whereRow.classList.toggle('needs', needsWhere && !state.locationDetail.trim());
+      whereRow.querySelector('label').textContent = needsWhere ? 'Where exactly? *' : 'Where exactly?';
+      whereHint.textContent = needsWhere ? "Please say where — the manager can't find \"Other\"." : 'Include the level if it helps, e.g. "level 2, near the lifts".';
       whatRow.classList.toggle('needs', !state.description.trim() && !state.photos.length);
       errEl.hidden = !attempted || ok;
-      errEl.textContent = `Please choose Standard or Urgent, pick an area, and add a photo or a few words. Your name and ${noun} number come from My Details.`;
+      errEl.textContent = `Please choose Standard or Urgent, pick an area (and say where, if Other), and add a photo or a few words. Your name and ${noun} number come from My Details.`;
     }
     body.appendChild(footer);
     const alt = card();
