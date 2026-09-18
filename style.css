@@ -644,6 +644,7 @@ div:first-child > .faq-suggest { border-top: none; }
 .urgbtn b { font-size: 14px; }
 .urgbtn small { font-size: 11px; font-weight: 500; opacity: .85; line-height: 1.2; }
 .urgbtn.navy, .urgbtn.red { border-color: transparent; }
+.urgbtn.choose { border: 2px solid #ff3b30; }   /* nothing chosen yet */
 .urgbtn.navy { background: var(--primary); color: #fff; }
 .urgbtn.red { background: #ff3b30; color: #fff; }
 a.navrow { text-decoration: none; color: inherit; display: flex; align-items: center; }

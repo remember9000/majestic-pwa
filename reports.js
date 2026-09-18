@@ -408,7 +408,7 @@ const telHref = (p) => 'tel:' + String(p || '').replace(/[^0-9+]/g, '');
 Pages.captureIssue = function () {
   const config = store.config;
   openPage(label(config, 'reportIssue', 'Report an Issue'), (body) => {
-    const state = drafts.capture || (drafts.capture = { urgency: 'later', level: '', area: '', locationDetail: '', description: '', photos: [] });   // Standard pre-selected
+    const state = drafts.capture || (drafts.capture = { urgency: '', level: '', area: '', locationDetail: '', description: '', photos: [] });   // no default: red outlines until chosen
     const noun = label(config, 'unitNoun', 'Unit').toLowerCase();
     const emergencyNumber = ((config.settings || {}).emergencyNumber || '').trim() || '000';
 
@@ -492,14 +492,15 @@ Pages.captureIssue = function () {
     const drawUrgency = () => {
       urow.innerHTML = '';
       URGENCY.forEach(([key, icon, title, subKey, subDefault]) => {
-        const b = el(`<button type="button" class="urgbtn${state.urgency === key ? (key === 'now' ? ' red' : ' navy') : ''}"><span>${icon}</span><b>${esc(title)}</b><small>${esc(setting(subKey, subDefault))}</small></button>`);
+        const b = el(`<button type="button" class="urgbtn${state.urgency === key ? (key === 'now' ? ' red' : ' navy') : (state.urgency ? '' : ' choose')}"><span>${icon}</span><b>${esc(title)}</b><small>${esc(setting(subKey, subDefault))}</small></button>`);
         b.addEventListener('click', () => { state.urgency = key; drawUrgency(); drawCall(); refresh(); });
         urow.appendChild(b);
       });
       ufoot.textContent = state.urgency === 'now'
         ? setting('responseUrgentDetail', 'The on-duty contact is alerted straight away and must acknowledge within 15 minutes.') + ` Fire, gas or life at risk: call ${emergencyNumber} first.`
-        : setting('responseGuidance', 'Most reports are Standard: damage, cleaning, maintenance. Urgent is for an active leak, a break-in, a broken entry door, or someone hurt.') + ' ' +
-          setting('responseStandardDetail', "You'll hear back within 4 business hours, and the manager may still attend sooner.");
+        : state.urgency === 'later'
+          ? setting('responseStandardDetail', "You'll hear back within 4 business hours, and the manager may still attend sooner.")
+          : setting('responseGuidance', 'Most reports are Standard: damage, cleaning, maintenance. Urgent is for an active leak, a break-in, a broken entry door, or someone hurt.');
     };
     body.appendChild(urow); body.appendChild(ufoot); drawUrgency();
 
