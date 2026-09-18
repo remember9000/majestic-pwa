@@ -241,7 +241,8 @@ const CAPTURE_ICON_SVG =
   '<g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
   '<path d="M6 14a3 3 0 0 1 3-3h5l3-4h10l3 4h5a3 3 0 0 1 3 3v17a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3z"/>' +
   '<circle cx="24" cy="22" r="6"/><path d="M12 5v-3M17 4l-1.5-2.5"/>' +
-  '<path d="M46 31l14-14 4 4-14 14-5 1z"/><path d="M57 20l4 4"/>' +
+  '<path d="M44 16h-2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/>' +
+  '<path d="M48 28l13-13 3 3-13 13-4 1z"/>' +
   '</g></svg>';
 // My Details: person in a rounded rectangle (person.crop.rectangle).
 const DETAILS_ICON_SVG =
