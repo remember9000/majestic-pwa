@@ -670,3 +670,4 @@ a.navrow { text-decoration: none; color: inherit; display: flex; align-items: ce
 
 /* Required capture fields outlined in red until filled */
 .frow.needs select, .frow.needs textarea, .frow.needs input[type=text] { border: 2px solid #ff3b30; }
+.card.needs { outline: 2px solid #ff3b30; outline-offset: -2px; }

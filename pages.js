@@ -194,6 +194,7 @@ function reporterSection(container, config) {
   if (line2) lines.appendChild(el(`<div class="reporter-l2">${esc(line2)}</div>`));
   if (!hasRequired) lines.appendChild(el(`<div class="reporter-l2">Your name and ${esc(noun.toLowerCase())} number are needed so the manager knows who to contact.</div>`));
   c.appendChild(lines);
+  c.classList.toggle('needs', !hasRequired);   // red outline until name + unit exist
   container.appendChild(c);
   const up = el(`<div class="updetails"><a href="#" class="${hasRequired ? '' : 'add'}">${hasRequired ? 'Update details' : 'Add details'}</a></div>`);
   up.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); Pages.myDetails(); });
