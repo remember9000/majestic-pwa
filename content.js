@@ -488,7 +488,25 @@ Pages.myReports = function () {
     const holder = el('<div></div>');
     body.appendChild(holder);
 
+    // Archive (2026-09-18): device-side only — hides items from this list;
+    // the building's record is unchanged. Unread updates surface an item.
+    const archiveKey = 'archived-' + config.code;
+    const loadArchived = () => { try { return new Set(JSON.parse(localStorage.getItem(archiveKey)) || []); } catch { return new Set(); } };
+    const saveArchived = (set) => localStorage.setItem(archiveKey, JSON.stringify([...set]));
+    let showArchived = false;
+    let lastReports = [], lastNote = '';
+
     function draw(reports, note) {
+      lastReports = reports; lastNote = note || '';
+      const archived = loadArchived();
+      // Anything archived with an unread update comes back by itself.
+      try {
+        const read = store.readKeys(config.code);
+        ((store.cachedNotices(config.code) || {}).alerts || []).forEach((a) => {
+          if (!read.has(noticeKey(a)) && archived.has(a.incidentID)) archived.delete(a.incidentID);
+        });
+        saveArchived(archived);
+      } catch { /* cosmetic */ }
       holder.innerHTML = '';
       if (!reports.length) {
         const empty = el(`<div class="card"><div class="empty-state">
@@ -500,23 +518,42 @@ Pages.myReports = function () {
         holder.appendChild(empty);
         return;
       }
-      const groups = [['Open', reports.filter((r) => !r.isClosed)],
-                      ['Completed', reports.filter((r) => r.isClosed)]];
+      const isArch = (r) => archived.has(r.reference);
+      const groups = [['Open', reports.filter((r) => !r.isClosed && !isArch(r))],
+                      ['Completed', reports.filter((r) => r.isClosed && !isArch(r))]];
+      const archivedList = reports.filter(isArch);
+      const rowFor = (rep, inArchive) => {
+        const row = el(`<div class="report-row">
+          <div class="report-head"><span class="report-type">${esc(rep.type)}</span>${statusPill(rep)}</div>
+          ${rep.summary ? `<div class="report-sum">${esc(rep.summary)}</div>` : ''}
+          <div class="report-meta">${esc(rep.reference)} — ${esc(rep.date)}<button type="button" class="report-archive">${inArchive ? 'Restore' : 'Archive'}</button></div>
+        </div>`);
+        row.addEventListener('click', () => Pages.myReportDetail(rep));
+        row.querySelector('.report-archive').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const set = loadArchived();
+          inArchive ? set.delete(rep.reference) : set.add(rep.reference);
+          saveArchived(set);
+          draw(lastReports, lastNote);
+        });
+        return row;
+      };
       groups.forEach(([heading, list]) => {
         if (!list.length) return;
         holder.appendChild(sectionTitle(heading));
         const c = card();
-        list.forEach((rep) => {
-          const row = el(`<button class="report-row">
-            <div class="report-head"><span class="report-type">${esc(rep.type)}</span>${statusPill(rep)}</div>
-            ${rep.summary ? `<div class="report-sum">${esc(rep.summary)}</div>` : ''}
-            <div class="report-meta">${esc(rep.reference)} — ${esc(rep.date)}</div>
-          </button>`);
-          row.addEventListener('click', () => Pages.myReportDetail(rep));
-          c.appendChild(row);
-        });
+        list.forEach((rep) => c.appendChild(rowFor(rep, false)));
         holder.appendChild(c);
       });
+      if (archivedList.length) {
+        const c = card();
+        const head = el(`<button class="navrow"><span class="icon">🗄</span><span class="muted">Archived (${archivedList.length})</span><span class="chev">${showArchived ? '⌄' : '›'}</span></button>`);
+        head.addEventListener('click', () => { showArchived = !showArchived; draw(lastReports, lastNote); });
+        c.appendChild(head);
+        if (showArchived) archivedList.forEach((rep) => c.appendChild(rowFor(rep, true)));
+        holder.appendChild(c);
+        holder.appendChild(el('<div class="fhint">Archived items are hidden from this list only — the building\'s record is unchanged. Anything with a new update comes back by itself.</div>'));
+      }
       if (note) holder.appendChild(el(`<div class="fhint">${esc(note)}</div>`));
     }
 
