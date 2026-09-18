@@ -110,7 +110,7 @@ function shutoffCallout(container) {
   const show = (info) => {
     if (!info || !info.waterShutoff) return;
     holder.innerHTML = '';
-    holder.appendChild(sectionTitle('Stop the water — your shut-off valve'));
+    holder.appendChild(sectionTitle('Leak from a pipe or tap? Your shut-off valve'));
     const c = card();
     c.appendChild(el(`<div class="frow" style="font-size:15px">💧 ${esc(info.waterShutoff)}</div>`));
     const more = el(`<button class="navrow"><span class="icon">🏠</span>More about ${esc(noun)} ${esc(unit)}<span class="chev">›</span></button>`);
