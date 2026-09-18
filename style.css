@@ -662,3 +662,6 @@ a.navrow { text-decoration: none; color: inherit; display: flex; align-items: ce
 /* Archive / Restore on Updates rows */
 .report-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .report-archive { background: none; border: 0; color: var(--primary); font-size: 12px; font-weight: 600; padding: 2px 0; cursor: pointer; font-family: inherit; }
+
+/* Way back from the code screen after Change Property */
+.onboard-cancel { margin-top: 14px; background: none; border: 0; color: var(--primary, #002147); font-size: 15px; font-weight: 600; text-decoration: underline; font-family: inherit; }

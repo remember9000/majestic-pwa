@@ -130,6 +130,8 @@ function initOnboarding() {
     try {
       const config = await fetchConfig(code);
       store.config = config;
+      store.previousConfig = null;
+      $('onboardCancel').hidden = true;
       renderHome();
     } catch (e) {
       $('onboardError').textContent = friendlyError(e);
@@ -496,10 +498,24 @@ function initChrome() {
     // Confirm first — one tap used to wipe the app (UI review #8).
     const name = (store.config && store.config.appName) || 'this building';
     if (!window.confirm(`Leave ${name}?\n\nThis removes ${name} from this device. You'll need the building's code or QR poster to set it up again. Your details are kept.`)) return;
+    // Remember the building so the code screen can offer a way back
+    // (2026-09-18: there was no cancel).
+    store.previousConfig = store.config;
+    store.previousBackendURL = localStorage.getItem('backendURL');
     store.config = null;
     localStorage.removeItem('backendURL');
     $('settingsSheet').hidden = true;
     $('codeInput').value = '';
+    const cancel = $('onboardCancel');
+    cancel.hidden = false;
+    cancel.textContent = 'Cancel — go back to ' + (name);
+    cancel.onclick = () => {
+      if (store.previousBackendURL) localStorage.setItem('backendURL', store.previousBackendURL);
+      store.config = store.previousConfig;
+      store.previousConfig = null;
+      cancel.hidden = true;
+      renderHome();
+    };
     show('onboarding');
   });
   $('docClose').addEventListener('click', () => { $('docOverlay').hidden = true; });
