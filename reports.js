@@ -385,7 +385,8 @@ Pages.publicProperty = function () {
 const CAPTURE_LEVELS = ['Basement', 'Ground', 'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Roof'];
 const CAPTURE_AREAS = ['Car park', 'Lobby', 'Corridor', 'Lift', 'Bin room', 'Stairwell',
   'Roof', 'Plant room', 'Pool', 'Garden / Grounds', 'Building exterior', 'Other'];
-const URGENCY = [['now', '⚠️', 'Happening now'], ['recent', '🕘', 'Just happened'], ['ongoing', '📅', 'Ongoing problem']];
+// One question, two answers (2026-09-18): "now" starts the escalation chain.
+const URGENCY = [['now', '⚠️', 'Needs someone now'], ['later', '🕘', 'Can wait']];
 function captureList(key, dflt) {
   const raw = ((store.config.settings || {})[key] || '').split(',').map((s) => s.trim()).filter(Boolean);
   return raw.length ? raw : dflt;
@@ -481,7 +482,7 @@ Pages.captureIssue = function () {
     obs.observe($('page'), { childList: true, subtree: true });
 
     // ---- urgency ----
-    body.appendChild(sectionTitle('Is this happening right now? *'));
+    body.appendChild(sectionTitle('Does someone need to attend now? *'));
     const urow = el('<div class="urgrow"></div>');   // no card: three separate buttons
     const ufoot = el('<div class="fhint"></div>');
     const drawUrgency = () => {
@@ -492,8 +493,8 @@ Pages.captureIssue = function () {
         urow.appendChild(b);
       });
       ufoot.textContent = state.urgency === 'now'
-        ? `Marked urgent — the manager's alert says so. Fire, flood, gas or personal safety: call ${emergencyNumber} first.`
-        : 'Water actively running versus a stain on the ceiling is the difference between a callout tonight and a job next week.';
+        ? `Marked urgent — someone will be alerted straight away. Fire, flood, gas or personal safety: call ${emergencyNumber} first.`
+        : "Water running now versus a stain on the ceiling is the difference between a callout tonight and a job next week. Say how long it's been going on in the description.";
     };
     body.appendChild(urow); body.appendChild(ufoot); drawUrgency();
 
@@ -547,7 +548,7 @@ Pages.captureIssue = function () {
     function refresh() {
       const ok = isValid(details.load());
       errEl.hidden = !attempted || ok;
-      errEl.textContent = `Please choose whether it's happening now, pick an area, and add a photo or a few words. Your name and ${noun} number come from My Details.`;
+      errEl.textContent = `Please say whether someone needs to attend now, pick an area, and add a photo or a few words. Your name and ${noun} number come from My Details.`;
     }
     body.appendChild(footer);
     const alt = card();
