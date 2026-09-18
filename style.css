@@ -667,3 +667,6 @@ a.navrow { text-decoration: none; color: inherit; display: flex; align-items: ce
 
 /* Way back from the code screen after Change Property */
 .onboard-cancel { margin-top: 14px; background: none; border: 0; color: var(--primary, #002147); font-size: 15px; font-weight: 600; text-decoration: underline; font-family: inherit; }
+
+/* Required capture fields outlined in red until filled */
+.frow.needs select, .frow.needs textarea { border: 2px solid #ff3b30; }

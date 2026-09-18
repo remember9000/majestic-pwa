@@ -434,7 +434,7 @@ Pages.captureIssue = function () {
       thumbs.innerHTML = '';
       state.photos.forEach((b64, i) => {
         const t = el(`<div class="camthumb"><img src="data:image/jpeg;base64,${b64}"><button type="button" aria-label="Remove">✕</button></div>`);
-        t.querySelector('button').addEventListener('click', () => { state.photos.splice(i, 1); drawThumbs(); });
+        t.querySelector('button').addEventListener('click', () => { state.photos.splice(i, 1); drawThumbs(); refresh(); });
         thumbs.appendChild(t);
       });
       shutter.disabled = state.photos.length >= MAX_PHOTOS;
@@ -466,7 +466,7 @@ Pages.captureIssue = function () {
       canvas.width = Math.round(video.videoWidth * scale); canvas.height = Math.round(video.videoHeight * scale);
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);   // canvas re-encode: no EXIF/GPS
       state.photos.push(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
-      drawThumbs();
+      drawThumbs(); refresh();
     });
     torchBtn.addEventListener('click', async () => {
       if (!track) return;
@@ -478,7 +478,7 @@ Pages.captureIssue = function () {
       for (const f of [...fileInput.files].slice(0, MAX_PHOTOS - state.photos.length)) {
         try { state.photos.push(await compressImage(f)); } catch (e) { toast(e.message); }
       }
-      fileInput.value = ''; drawThumbs();
+      fileInput.value = ''; drawThumbs(); refresh();
     });
     startCamera();
     // Stop the camera when the page is left (back/home re-render the page).
@@ -508,14 +508,16 @@ Pages.captureIssue = function () {
     body.appendChild(sectionTitle('Where'));
     const wc = card();
     wc.appendChild(selectRow('Level', captureList('captureLevels', CAPTURE_LEVELS), state.level, (v) => { state.level = v; }, 'Choose…'));
-    wc.appendChild(selectRow('Area *', ['My ' + noun].concat(captureList('captureAreas', CAPTURE_AREAS)), state.area, (v) => { state.area = v; refresh(); }, 'Choose…'));
+    const areaRow = selectRow('Area *', ['My ' + noun].concat(captureList('captureAreas', CAPTURE_AREAS)), state.area, (v) => { state.area = v; refresh(); }, 'Choose…');
+    wc.appendChild(areaRow);
     wc.appendChild(textRow('Where exactly?', state.locationDetail, (i) => { state.locationDetail = i.value; }, { placeholder: `e.g. outside ${noun} 12` }));
     body.appendChild(wc);
 
     // ---- what ----
     body.appendChild(sectionTitle('What'));
     const dc = card();
-    dc.appendChild(textareaRow('', state.description, (v) => { state.description = v; refresh(); }, "What's happening? Say it or type it."));
+    const whatRow = textareaRow('', state.description, (v) => { state.description = v; refresh(); }, "What's happening? Say it or type it.");
+    dc.appendChild(whatRow);
     body.appendChild(dc);
     body.appendChild(el('<div class="fhint">Water is hard to see in a photo — a few words help. Please check dictated text before sending.</div>'));
 
@@ -553,6 +555,9 @@ Pages.captureIssue = function () {
       (state.description.trim() || state.photos.length);
     function refresh() {
       const ok = isValid(details.load());
+      // Red outline on required fields until filled (words or a photo for What).
+      areaRow.classList.toggle('needs', !state.area);
+      whatRow.classList.toggle('needs', !state.description.trim() && !state.photos.length);
       errEl.hidden = !attempted || ok;
       errEl.textContent = `Please choose Standard or Urgent, pick an area, and add a photo or a few words. Your name and ${noun} number come from My Details.`;
     }
