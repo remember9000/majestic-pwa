@@ -235,6 +235,14 @@ const REPORTS_ICON_SVG =
   '<path d="M9 6h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H15l-6 5v-5a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
   '<path fill="#e8ebf5" d="M23 14h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4v5l-6-5H23a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
   '</g></svg>';
+// Report an Issue: camera with a shutter tick + a pencil (camera.shutter.button | pencil).
+const CAPTURE_ICON_SVG =
+  '<svg viewBox="0 0 64 40" aria-hidden="true">' +
+  '<g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M6 14a3 3 0 0 1 3-3h5l3-4h10l3 4h5a3 3 0 0 1 3 3v17a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3z"/>' +
+  '<circle cx="24" cy="22" r="6"/><path d="M12 5v-3M17 4l-1.5-2.5"/>' +
+  '<path d="M46 31l14-14 4 4-14 14-5 1z"/><path d="M57 20l4 4"/>' +
+  '</g></svg>';
 // My Details: person in a rounded rectangle (person.crop.rectangle).
 const DETAILS_ICON_SVG =
   '<svg viewBox="0 0 48 40" aria-hidden="true">' +
@@ -261,7 +269,7 @@ function renderTiles(config, blocked) {
     // Let Us Know | My Majestic, My Details | Key Contacts. FAQ tile gone
     // (content lives inside My Majestic). Checkerboard follows position
     // (warm at 1, 4, 5) — mirrors HomeView.swift.
-    ['reportIssue', '📷', label(config, 'reportIssue', 'Report an Issue'), true, 'warm',
+    ['reportIssue', CAPTURE_ICON_SVG, label(config, 'reportIssue', 'Report an Issue'), true, 'warm',
      ['💧', '🏢', '🛡', '🔊'], () => Pages.captureIssue()],
     ['myReports', REPORTS_ICON_SVG, label(config, 'myReports', 'Updates'), false, 'cool',
      ['🕐', '✔️'], () => Pages.myReports()],
