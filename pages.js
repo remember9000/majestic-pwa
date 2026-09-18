@@ -286,6 +286,19 @@ function formPage(opts) {
 
     opts.sections(body, state, refresh);
     body.appendChild(footer);
+    // Required rows (label ends with *) are outlined in red until filled —
+    // same signal as the capture screen. Any input anywhere re-checks.
+    const requiredRows = [...body.querySelectorAll('.frow')].filter((r) => {
+      const lab = r.querySelector('label, .inline span');
+      return lab && /\*\s*$/.test(lab.textContent) && r.querySelector('select, textarea, input[type=text]');
+    });
+    const checkRequired = () => requiredRows.forEach((r) => {
+      const ctl = r.querySelector('select, textarea, input[type=text]');
+      r.classList.toggle('needs', !String(ctl.value || '').trim());
+    });
+    body.addEventListener('input', checkRequired);
+    body.addEventListener('change', checkRequired);
+    checkRequired();
     refresh();
 
     btn.addEventListener('click', async () => {
