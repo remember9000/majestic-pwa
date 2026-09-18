@@ -266,8 +266,6 @@ function formPage(opts) {
     }
     pendingPrefill = null;
 
-    reporterSection(body, config);
-
     const footer = el(`<div>
       <div class="fhint" style="text-align:center">Submissions go to your strata manager, building manager and committee — please keep them accurate and courteous.</div>
       <div class="ferror" hidden></div>
@@ -285,6 +283,7 @@ function formPage(opts) {
     }
 
     opts.sections(body, state, refresh);
+    reporterSection(body, config);   // Your Details below the required fields (2026-09-19)
     body.appendChild(footer);
     // Required rows (label ends with *) are outlined in red until filled —
     // same signal as the capture screen. Any input anywhere re-checks.
