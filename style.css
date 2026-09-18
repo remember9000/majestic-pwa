@@ -190,7 +190,7 @@ button.primary:disabled { opacity: .5; }
 }
 .tile .ticon { font-size: 30px; line-height: 1.1; }
 .tile .ticon svg { width: 36px; height: 30px; display: block; margin: 0 auto; }
-.tile .ticon svg[viewBox="0 0 64 40"] { width: 58px; height: 36px; }   /* camera + pencil pair */
+.tile .ticon svg[viewBox="0 0 70 40"] { width: 62px; height: 36px; }   /* camera + compose square pair */
 .tile.cool .ticon { color: var(--primary); }
 .tile.warm .ticon { color: #EC7357; }   /* SVG icons take the tile's tone via currentColor */
 .tile .tlabel { line-height: 1.2; }
