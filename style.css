@@ -635,12 +635,12 @@ div:first-child > .faq-suggest { border-top: none; }
 .camshutter { width: 58px; height: 58px; border-radius: 50%; border: 3px solid #fff; background: transparent; position: relative; padding: 0; }
 .camshutter::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: #fff; }
 .camshutter:disabled { opacity: .4; }
-.urgrow { display: flex; }
-.urgbtn { flex: 1; border: 0; background: #e5e5ea; color: #1c1c1e; padding: 10px 4px; font-size: 12px; font-weight: 600; font-family: inherit;
-  display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.urgbtn + .urgbtn { border-left: 1px solid #fff; }
-.urgbtn:first-child { border-radius: 8px 0 0 8px; } .urgbtn:last-child { border-radius: 0 8px 8px 0; }
-.urgbtn span { font-size: 18px; }
+.urgrow { display: flex; gap: 10px; margin: 4px 0; }
+.urgbtn { flex: 1; min-height: 64px; border: 1px solid #c7c7cc; border-radius: 12px; background: #fff; color: #1c1c1e;
+  padding: 10px 4px; font-size: 12px; font-weight: 600; font-family: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+.urgbtn span { font-size: 20px; }
+.urgbtn.navy, .urgbtn.red { border-color: transparent; }
 .urgbtn.navy { background: var(--primary); color: #fff; }
 .urgbtn.red { background: #ff3b30; color: #fff; }
 a.navrow { text-decoration: none; color: inherit; display: flex; align-items: center; }

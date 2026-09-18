@@ -482,8 +482,7 @@ Pages.captureIssue = function () {
 
     // ---- urgency ----
     body.appendChild(sectionTitle('Is this happening right now? *'));
-    const uc = card();
-    const urow = el('<div class="urgrow"></div>');
+    const urow = el('<div class="urgrow"></div>');   // no card: three separate buttons
     const ufoot = el('<div class="fhint"></div>');
     const drawUrgency = () => {
       urow.innerHTML = '';
@@ -496,7 +495,7 @@ Pages.captureIssue = function () {
         ? `Marked urgent — the manager's alert says so. Fire, flood, gas or personal safety: call ${emergencyNumber} first.`
         : 'Water actively running versus a stain on the ceiling is the difference between a callout tonight and a job next week.';
     };
-    uc.appendChild(urow); body.appendChild(uc); body.appendChild(ufoot); drawUrgency();
+    body.appendChild(urow); body.appendChild(ufoot); drawUrgency();
 
     // ---- where ----
     body.appendChild(sectionTitle('Where'));
