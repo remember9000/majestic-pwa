@@ -585,6 +585,42 @@ Pages.myReports = function () {
   });
 };
 
+// Withdraw (2026-09-18): "never mind". Reason required; the row stays.
+function withdrawSection(body, rep) {
+  const config = store.config;
+  const noun = rep.type === 'Issue' || /Report/.test(rep.type) ? 'report' : 'request';
+  const c = card();
+  const btn = el(`<button class="navrow" style="color:#d0021b"><span class="icon">✕</span>Withdraw this ${noun}<span class="chev">›</span></button>`);
+  c.appendChild(btn);
+  body.appendChild(c);
+  body.appendChild(el('<div class="fhint">Problem gone away, or sent by mistake? Withdrawing tells the building manager to stand down. It stays in your list as withdrawn.</div>'));
+  btn.addEventListener('click', () => {
+    const sheet = el(`<div class="modal-back"><div class="modal">
+      <h3>Withdraw ${esc(rep.reference)}</h3>
+      <label class="flabel">Why are you withdrawing it?</label>
+      <textarea class="finput" id="wd-reason" rows="3" placeholder="e.g. the lift is working again"></textarea>
+      <div class="fhint">The manager sees this. It stays on record as withdrawn — nothing is deleted.</div>
+      <div class="modal-actions"><button class="btn-secondary" id="wd-cancel">Cancel</button><button class="btn-primary" id="wd-go" style="background:#d0021b">Withdraw</button></div>
+    </div></div>`);
+    document.body.appendChild(sheet);
+    sheet.querySelector('#wd-cancel').addEventListener('click', () => sheet.remove());
+    sheet.querySelector('#wd-go').addEventListener('click', async () => {
+      const reason = sheet.querySelector('#wd-reason').value.trim();
+      if (!reason) { sheet.querySelector('#wd-reason').focus(); return; }
+      const go = sheet.querySelector('#wd-go'); go.disabled = true; go.textContent = 'Withdrawing…';
+      try {
+        const r = await postReport({ action: 'withdraw', code: config.code, incidentID: rep.reference, reason });
+        sheet.remove();
+        try { const code = config.code; ((store.cachedNotices(code) || {}).alerts || []).filter((a) => a.incidentID === rep.reference).forEach((a) => store.markRead(code, noticeKey(a))); } catch { /* cosmetic */ }
+        showAlert('Withdrawn', `${rep.reference} is now ${r.status || 'withdrawn'}. The building manager has been told.`, goBack);
+      } catch (e) {
+        go.disabled = false; go.textContent = 'Withdraw';
+        alert(friendlyError(e));
+      }
+    });
+  });
+}
+
 // The resident's own photos on a report: thumbnail grid → carousel.
 // Device-scoped by the backend; the section is hidden when there are none.
 function reportPhotosSection(body, rep) {
@@ -720,6 +756,8 @@ Pages.myReportDetail = function (rep) {
     reportPhotosSection(body, rep);
 
     if (rep.type === 'Noise' && !rep.isClosed) repeatSection(body, rep);
+
+    if (!rep.isClosed) withdrawSection(body, rep);
 
     body.appendChild(sectionTitle('Progress'));
     const p = card();
