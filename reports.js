@@ -408,7 +408,7 @@ const telHref = (p) => 'tel:' + String(p || '').replace(/[^0-9+]/g, '');
 Pages.captureIssue = function () {
   const config = store.config;
   openPage(label(config, 'reportIssue', 'Report an Issue'), (body) => {
-    const state = drafts.capture || (drafts.capture = { urgency: '', level: '', area: '', locationDetail: '', description: '', photos: [] });
+    const state = drafts.capture || (drafts.capture = { urgency: 'later', level: '', area: '', locationDetail: '', description: '', photos: [] });   // Standard pre-selected
     const noun = label(config, 'unitNoun', 'Unit').toLowerCase();
     const emergencyNumber = ((config.settings || {}).emergencyNumber || '').trim() || '000';
 
@@ -498,9 +498,8 @@ Pages.captureIssue = function () {
       });
       ufoot.textContent = state.urgency === 'now'
         ? setting('responseUrgentDetail', 'The on-duty contact is alerted straight away and must acknowledge within 15 minutes.') + ` Fire, gas or life at risk: call ${emergencyNumber} first.`
-        : state.urgency === 'later'
-          ? setting('responseStandardDetail', "You'll hear back within 4 business hours, and the manager may still attend sooner.")
-          : setting('responseGuidance', 'Most reports are Standard: damage, cleaning, maintenance. Urgent is for an active leak, a break-in, a broken entry door, or someone hurt.');
+        : setting('responseGuidance', 'Most reports are Standard: damage, cleaning, maintenance. Urgent is for an active leak, a break-in, a broken entry door, or someone hurt.') + ' ' +
+          setting('responseStandardDetail', "You'll hear back within 4 business hours, and the manager may still attend sooner.");
     };
     body.appendChild(urow); body.appendChild(ufoot); drawUrgency();
 
