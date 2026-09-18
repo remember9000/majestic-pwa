@@ -327,7 +327,14 @@ function formPage(opts) {
         const nudge = resp && resp.pendingVerification
           ? '\n\nTo send it to the building manager and receive progress updates, please verify your email address on the My Details page.'
           : '';
-        showAlert(opts.successTitle, opts.successMsg(id) + nudge, goBack);
+        let escNote = '';
+        if (resp && resp.escalation && resp.escalation.contact) {
+          const e = resp.escalation;
+          escNote = `\n\nAlerted ${e.contact} by ${e.channel}.` +
+            (e.minutes > 0 && e.next ? ` If nobody acknowledges within ${e.minutes} minutes it goes to ${e.next}.` : '') +
+            " You'll get an update here when someone picks it up.";
+        }
+        showAlert(opts.successTitle, opts.successMsg(id) + nudge + escNote, goBack);
       } catch (e) {
         showAlert('Submission Failed', friendlyError(e) + DRAFT_KEPT);
         btn.disabled = false;

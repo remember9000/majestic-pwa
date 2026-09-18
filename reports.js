@@ -133,8 +133,9 @@ Pages.leak = () => formPage({
   fresh: () => ({ dateNoticed: todayISO(), timeNoticed: nowHM(), location: '',
                   sourceIdentified: '', sourceDetails: '', mitigationPossible: '', mitigationDetails: '',
                   weatherRelated: '', weatherDetails: '', changesOverTime: '', changesDetails: '',
-                  neighbourContacted: '', neighbourApartments: '', neighbourDetails: '', photos: [] }),
+                  neighbourContacted: '', neighbourApartments: '', neighbourDetails: '', photos: [], urgency: '' }),
   sections(body, s, refresh) {
+    const ub = urgencyBlock(body, s, refresh);
     const noun = label(store.config, 'unitNoun', 'Unit').toLowerCase();
     shutoffCallout(body);   // the resident's own valve, where the task happens
     body.appendChild(sectionTitle('Incident Details'));
@@ -167,11 +168,12 @@ Pages.leak = () => formPage({
     body.appendChild(n);
 
     photosSection(body, s);
+    body.appendChild(ub.callHolder);
   },
-  isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.location.trim(),
-  invalidMsg: 'Please fill in your name, unit number, and the location before submitting.',
+  isValid: (s, d) => s.urgency && details.fullName(d).trim() && d.unitNumber.trim() && s.location.trim(),
+  invalidMsg: 'Please choose Standard or Urgent, then fill in your name, unit number, and the location before submitting.',
   buildPayload: (s) => ({
-    action: 'submitLeak',
+    action: 'submitLeak', urgency: s.urgency,
     dateNoticed: fmtDateTime(s.dateNoticed, s.timeNoticed),
     location: s.location,
     sourceIdentified: s.sourceIdentified, sourceDetails: s.sourceDetails,
@@ -192,8 +194,9 @@ Pages.damage = () => formPage({
   fresh: () => ({ dateNoticed: todayISO(), timeNoticed: nowHM(), area: '', locationDetail: '',
                   damageDescription: '', safetyHazard: '', safetyDetails: '',
                   securityRisk: '', securityDetails: '', causeKnown: '', causeDetails: '',
-                  witnessed: '', witnessDetails: '', likelyToWorsen: '', worsenDetails: '', photos: [] }),
+                  witnessed: '', witnessDetails: '', likelyToWorsen: '', worsenDetails: '', photos: [], urgency: '' }),
   sections(body, s, refresh) {
+    const ub = urgencyBlock(body, s, refresh);
     const noun = label(store.config, 'unitNoun', 'Unit').toLowerCase();
     body.appendChild(sectionTitle('Damage Details'));
     const c = card();
@@ -221,12 +224,13 @@ Pages.damage = () => formPage({
     body.appendChild(q);
 
     photosSection(body, s);
+    body.appendChild(ub.callHolder);
   },
-  isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.area &&
+  isValid: (s, d) => s.urgency && details.fullName(d).trim() && d.unitNumber.trim() && s.area &&
     s.damageDescription.trim(),
-  invalidMsg: 'Please fill in your name, unit number, the area, and a description before submitting.',
+  invalidMsg: 'Please choose Standard or Urgent, then fill in your name, unit number, the area, and a description before submitting.',
   buildPayload: (s) => ({
-    action: 'submitDamage',
+    action: 'submitDamage', urgency: s.urgency,
     dateNoticed: fmtDateTime(s.dateNoticed, s.timeNoticed),
     area: s.area, locationDetail: s.locationDetail, damageDescription: s.damageDescription,
     safetyHazard: s.safetyHazard, safetyDetails: s.safetyDetails,
@@ -246,8 +250,9 @@ Pages.security = () => formPage({
   fresh: () => ({ occurredDate: todayISO(), occurredTime: nowHM(), incidentType: '', area: '',
                   locationDetail: '', incidentDescription: '', isOngoing: '', ongoingDetails: '',
                   sawPerson: '', personDetails: '', reportedToPolice: '', policeDetails: '',
-                  cctvNearby: '', cctvDetails: '', photos: [] }),
+                  cctvNearby: '', cctvDetails: '', photos: [], urgency: '' }),
   sections(body, s, refresh) {
+    const ub = urgencyBlock(body, s, refresh);
     const config = store.config;
     const noun = label(config, 'unitNoun', 'Unit');
     body.appendChild(sectionTitle('Incident Details'));
@@ -290,12 +295,13 @@ Pages.security = () => formPage({
     body.appendChild(q);
 
     photosSection(body, s);
+    body.appendChild(ub.callHolder);
   },
-  isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.incidentType && s.area &&
+  isValid: (s, d) => s.urgency && details.fullName(d).trim() && d.unitNumber.trim() && s.incidentType && s.area &&
     s.incidentDescription.trim(),
-  invalidMsg: 'Please fill in your name, unit number, the incident type, area, and a description before submitting.',
+  invalidMsg: 'Please choose Standard or Urgent, then fill in your name, unit number, the incident type, area, and a description before submitting.',
   buildPayload: (s) => ({
-    action: 'submitSecurity',
+    action: 'submitSecurity', urgency: s.urgency,
     occurredAt: fmtDateTime(s.occurredDate, s.occurredTime),
     incidentType: s.incidentType, area: s.area, locationDetail: s.locationDetail,
     incidentDescription: s.incidentDescription,
@@ -316,8 +322,9 @@ Pages.noise = () => formPage({
                   noiseType: '', suspectedSource: '', noiseDescription: '',
                   isRecurring: '', recurringDetails: '', quietHours: '', quietHoursDetails: '',
                   impact: '', impactDetails: '', raisedWithPerson: '', raisedDetails: '',
-                  photos: [] }),
+                  photos: [], urgency: '' }),
   sections(body, s, refresh) {
+    const ub = urgencyBlock(body, s, refresh);
     const noun = label(store.config, 'unitNoun', 'Unit').toLowerCase();
     body.appendChild(sectionTitle('Noise Details'));
     const c = card();
@@ -345,12 +352,13 @@ Pages.noise = () => formPage({
     body.appendChild(q);
 
     photosSection(body, s);
+    body.appendChild(ub.callHolder);
   },
-  isValid: (s, d) => details.fullName(d).trim() && d.unitNumber.trim() && s.noiseType &&
+  isValid: (s, d) => s.urgency && details.fullName(d).trim() && d.unitNumber.trim() && s.noiseType &&
     s.noiseDescription.trim(),
-  invalidMsg: 'Please fill in your name, unit number, the noise type, and a description before submitting.',
+  invalidMsg: 'Please choose Standard or Urgent, then fill in your name, unit number, the noise type, and a description before submitting.',
   buildPayload: (s) => ({
-    action: 'submitNoise',
+    action: 'submitNoise', urgency: s.urgency,
     firstStarted: fmtDateTime(s.firstDate, s.firstTime),
     lastOccurred: fmtDateTime(s.lastDate, s.lastTime),
     noiseType: s.noiseType, suspectedSource: s.suspectedSource, noiseDescription: s.noiseDescription,
@@ -404,6 +412,50 @@ function afterHoursContact() {
   return match(/after|24/i) || match(/security/i) || match(/building manager|caretaker/i) || real[0] || null;
 }
 const telHref = (p) => 'tel:' + String(p || '').replace(/[^0-9+]/g, '');
+
+// Standard / Urgent (shared by the capture screen and the four issue forms,
+// 2026-09-18): the buttons, their footer, and the call cards shown when
+// Urgent is chosen. Returns { callHolder } for the caller to place.
+function urgencyBlock(body, state, refresh) {
+  const config = store.config;
+  const emergencyNumber = ((config.settings || {}).emergencyNumber || '').trim() || '000';
+  body.appendChild(sectionTitle('How urgent is it? *'));
+  const urow = el('<div class="urgrow"></div>');   // no card: two separate buttons
+  const ufoot = el('<div class="fhint"></div>');
+  const callHolder = el('<div></div>');
+  const drawCall = () => {
+    callHolder.innerHTML = '';
+    if (state.urgency !== 'now') return;
+    callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Need someone right now?</div>'));
+    const ah = afterHoursContact();
+    if (ah) {
+      const c = card();
+      c.appendChild(el(`<a class="navrow" href="${telHref(ah.phone)}"><span class="icon">📞</span><span><b>Call ${esc(ah.name || ah.role)}</b><br><span class="muted" style="font-size:13px">${[ah.name ? ah.role : '', ah.phone, hoursText(ah.hours)].filter(Boolean).map(esc).join(' · ')}</span></span><span class="chev">›</span></a>`));
+      callHolder.appendChild(c);
+    }
+    callHolder.appendChild(el('<div class="fhint">A call gets the response tonight. Sending this report keeps the record.</div>'));
+    callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Emergency</div>'));
+    const e = card();
+    e.appendChild(el(`<a class="navrow" href="${telHref(emergencyNumber)}" style="color:#d0021b"><span class="icon">🆘</span><b>Fire, flood, gas or safety — call ${esc(emergencyNumber)}</b><span class="chev">›</span></a>`));
+    callHolder.appendChild(e);
+  };
+  const drawUrgency = () => {
+    urow.innerHTML = '';
+    URGENCY.forEach(([key, icon, title, subKey, subDefault]) => {
+      const b = el(`<button type="button" class="urgbtn${state.urgency === key ? (key === 'now' ? ' red' : ' navy') : (state.urgency ? '' : ' choose')}"><span>${icon}</span><b>${esc(title)}</b><small>${esc(setting(subKey, subDefault))}</small></button>`);
+      b.addEventListener('click', () => { state.urgency = key; drawUrgency(); drawCall(); refresh(); });
+      urow.appendChild(b);
+    });
+    ufoot.textContent = state.urgency === 'now'
+      ? setting('responseUrgentDetail', 'The on-duty contact is alerted straight away and must acknowledge within 15 minutes.') + ` Fire, gas or life at risk: call ${emergencyNumber} first.`
+      : state.urgency === 'later'
+        ? setting('responseStandardDetail', "You'll hear back within 4 business hours, and the manager may still attend sooner.")
+        : setting('responseGuidance', 'Most reports are Standard: damage, cleaning, maintenance. Urgent is for an active leak, a break-in, a broken entry door, or someone hurt.');
+  };
+  body.appendChild(urow); body.appendChild(ufoot);
+  drawUrgency(); drawCall();
+  return { callHolder };
+}
 
 Pages.captureIssue = function () {
   const config = store.config;
@@ -485,24 +537,7 @@ Pages.captureIssue = function () {
     const obs = new MutationObserver(() => { if (!document.body.contains(cam)) { stopCamera(); obs.disconnect(); } });
     obs.observe($('page'), { childList: true, subtree: true });
 
-    // ---- urgency ----
-    body.appendChild(sectionTitle('How urgent is it? *'));
-    const urow = el('<div class="urgrow"></div>');   // no card: three separate buttons
-    const ufoot = el('<div class="fhint"></div>');
-    const drawUrgency = () => {
-      urow.innerHTML = '';
-      URGENCY.forEach(([key, icon, title, subKey, subDefault]) => {
-        const b = el(`<button type="button" class="urgbtn${state.urgency === key ? (key === 'now' ? ' red' : ' navy') : (state.urgency ? '' : ' choose')}"><span>${icon}</span><b>${esc(title)}</b><small>${esc(setting(subKey, subDefault))}</small></button>`);
-        b.addEventListener('click', () => { state.urgency = key; drawUrgency(); drawCall(); refresh(); });
-        urow.appendChild(b);
-      });
-      ufoot.textContent = state.urgency === 'now'
-        ? setting('responseUrgentDetail', 'The on-duty contact is alerted straight away and must acknowledge within 15 minutes.') + ` Fire, gas or life at risk: call ${emergencyNumber} first.`
-        : state.urgency === 'later'
-          ? setting('responseStandardDetail', "You'll hear back within 4 business hours, and the manager may still attend sooner.")
-          : setting('responseGuidance', 'Most reports are Standard: damage, cleaning, maintenance. Urgent is for an active leak, a break-in, a broken entry door, or someone hurt.');
-    };
-    body.appendChild(urow); body.appendChild(ufoot); drawUrgency();
+    const ub = urgencyBlock(body, state, refresh);
 
     // ---- where ----
     body.appendChild(sectionTitle('Where'));
@@ -522,28 +557,6 @@ Pages.captureIssue = function () {
     dc.appendChild(whatRow);
     body.appendChild(dc);
     body.appendChild(el('<div class="fhint">Water is hard to see in a photo — a few words help. Please check dictated text before sending.</div>'));
-
-    // ---- call now (urgent) — rendered below the form, see after the detailed-forms link ----
-    const callHolder = el('<div></div>');
-    function drawCall() {
-      callHolder.innerHTML = '';
-      if (state.urgency !== 'now') return;
-      callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Need someone right now?</div>'));
-      const ah = afterHoursContact();
-      if (ah) {
-        const c = card();
-        c.appendChild(el(`<a class="navrow" href="${telHref(ah.phone)}"><span class="icon">📞</span><span><b>Call ${esc(ah.name || ah.role)}</b><br><span class="muted" style="font-size:13px">${[ah.name ? ah.role : '', ah.phone, hoursText(ah.hours)].filter(Boolean).map(esc).join(' · ')}</span></span><span class="chev">›</span></a>`));
-        callHolder.appendChild(c);
-      }
-      callHolder.appendChild(el('<div class="fhint">A call gets the response tonight. Sending this report keeps the record.</div>'));
-      // 000 in its own card, well clear of the after-hours row — a fat
-      // finger on it is not a small mistake.
-      callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Emergency</div>'));
-      const e = card();
-      e.appendChild(el(`<a class="navrow" href="${telHref(emergencyNumber)}" style="color:#d0021b"><span class="icon">🆘</span><b>Fire, flood, gas or safety — call ${esc(emergencyNumber)}</b><span class="chev">›</span></a>`));
-      callHolder.appendChild(e);
-    }
-    drawCall();
 
     // ---- reporter + submit ----
     reporterSection(body, config);
@@ -573,7 +586,7 @@ Pages.captureIssue = function () {
     const altLink = el('<button class="navrow"><span class="icon">📋</span>Prefer a detailed form?<span class="chev">›</span></button>');
     altLink.addEventListener('click', () => Pages.reportIssue());
     alt.appendChild(altLink); body.appendChild(alt);
-    body.appendChild(callHolder);
+    body.appendChild(ub.callHolder);
     refresh();
 
     btn.addEventListener('click', async () => {
