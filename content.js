@@ -523,11 +523,17 @@ Pages.myReports = function () {
                       ['Completed', reports.filter((r) => r.isClosed && !isArch(r))]];
       const archivedList = reports.filter(isArch);
       const rowFor = (rep, inArchive) => {
-        const row = el(`<div class="report-row">
+        const row = el(`<div class="report-row${rep.hasPhotos ? ' has-thumb' : ''}">
+          ${rep.hasPhotos ? '<div class="report-thumb" aria-hidden="true"></div>' : ''}
+          <div class="report-body">
           <div class="report-head"><span class="report-type">${esc(rep.type)}</span>${statusPill(rep)}</div>
           ${rep.summary ? `<div class="report-sum">${esc(rep.summary)}</div>` : ''}
           <div class="report-meta">${esc(rep.reference)} — ${esc(rep.date)}<button type="button" class="report-archive">${inArchive ? 'Restore' : 'Archive'}</button></div>
+          </div>
         </div>`);
+        if (rep.hasPhotos) firstThumb(rep).then((b64) => {
+          if (b64) row.querySelector('.report-thumb').innerHTML = `<img src="data:image/jpeg;base64,${b64}" alt="">`;
+        }).catch(() => { /* placeholder stays */ });
         row.addEventListener('click', () => Pages.myReportDetail(rep));
         row.querySelector('.report-archive').addEventListener('click', (e) => {
           e.stopPropagation();
@@ -585,6 +591,95 @@ Pages.myReports = function () {
   });
 };
 
+// Photo lists per reference for this session: the Updates list wants each
+// report's first thumbnail, and the report page asks for the list again.
+const photoListCache = {};
+function reportPhotoList(rep, fresh) {
+  const config = store.config;
+  if (!fresh && photoListCache[rep.reference]) return Promise.resolve(photoListCache[rep.reference]);
+  return backendJSON({ action: 'myReportPhotos', code: config.code, deviceId: store.deviceId, ref: rep.reference })
+    .then((j) => { photoListCache[rep.reference] = j.photos || []; return photoListCache[rep.reference]; });
+}
+function firstThumb(rep) {
+  const config = store.config;
+  return reportPhotoList(rep).then((photos) => {
+    const p = photos[0];
+    if (!p) return null;
+    return cachedMedia('rthumb-' + p.id + '-' + p.version, async () => {
+      const t = await backendJSON({ action: 'myReportThumb', code: config.code, deviceId: store.deviceId, ref: rep.reference, id: p.id });
+      return t.base64;
+    });
+  });
+}
+
+// Update this report (2026-09-19): a note and/or more photos, added to
+// the record — the original is never rewritten. The manager gets it.
+function updateSection(body, rep) {
+  const updates = (rep.residentUpdates || []).slice();
+  const noun = rep.type === 'Issue' || /Report|Leak|Property|Security|Noise/.test(rep.type) ? 'report' : 'request';
+  const head = sectionTitle('Your updates');
+  body.appendChild(head);
+  const c = card();
+  body.appendChild(c);
+  const draw = () => {
+    head.textContent = updates.length ? `Your updates — ${updates.length} sent` : 'Your updates';
+    c.innerHTML = '';
+    const btn = el(`<button class="navrow"><span class="icon">✏️</span><b>Update this ${noun}</b><span class="chev">›</span></button>`);
+    btn.addEventListener('click', () => Pages.updateReport(rep, (u) => { updates.unshift(u); draw(); }));
+    c.appendChild(btn);
+    if (!updates.length) {
+      c.appendChild(el(`<div class="fhint">Got more to add — it's worse, it's moved, or you have a clearer photo? Send an update; the building manager sees it against ${esc(rep.reference)}.</div>`));
+    } else {
+      updates.forEach((u) => {
+        c.appendChild(el(`<div class="update-row">
+          <div class="update-title">${esc(u.when)}${u.photos ? `<span class="update-date" style="margin-left:auto">📷 ${u.photos}</span>` : ''}</div>
+          ${u.note ? `<div class="update-msg">${esc(u.note)}</div>` : ''}
+        </div>`));
+      });
+    }
+  };
+  draw();
+}
+
+Pages.updateReport = function (rep, onSent) {
+  const config = store.config;
+  const noun = rep.type === 'Issue' || /Report|Leak|Property|Security|Noise/.test(rep.type) ? 'report' : 'request';
+  const state = { note: '', photos: [] };
+  openPage('Update', (body) => {
+    body.appendChild(sectionTitle("What's changed?"));
+    const c = card();
+    const ta = el('<div class="frow"><textarea class="finput" rows="4" placeholder="e.g. the drip has become a steady flow"></textarea></div>');
+    ta.querySelector('textarea').addEventListener('input', (e) => { state.note = e.target.value; });
+    c.appendChild(ta);
+    body.appendChild(c);
+    body.appendChild(el(`<div class="fhint">Added to ${esc(rep.reference)} — your original ${noun} stays as sent.</div>`));
+    photosSection(body, state, 'Add photos');
+
+    const send = el('<button class="submitbtn">Send update</button>');
+    body.appendChild(send);
+    send.addEventListener('click', async () => {
+      const note = state.note.trim();
+      if (!note && !state.photos.length) { alert('Add a note or a photo first.'); return; }
+      send.disabled = true; send.textContent = 'Sending…';
+      const updateId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+      try {
+        const r = await postReport({ action: 'updateReport', code: config.code, incidentID: rep.reference,
+                                     note, photos: state.photos, updateId });
+        delete photoListCache[rep.reference];
+        if (onSent) onSent({ when: r.when || new Date().toLocaleString('en-AU'), note, photos: r.photosAdded || 0 });
+        const msg = r.deliveredVia === 'email'
+          ? `Added to ${rep.reference} and sent to the building manager.`
+          : (rep.pending ? `Added to ${rep.reference}. It goes to the building manager once your email is verified.`
+                         : `Added to ${rep.reference}.`);
+        showAlert('Update sent', msg, goBack);
+      } catch (e) {
+        send.disabled = false; send.textContent = 'Send update';
+        alert(friendlyError(e));
+      }
+    });
+  });
+};
+
 // Withdraw (2026-09-18): "never mind". Reason required; the row stays.
 function withdrawSection(body, rep) {
   const config = store.config;
@@ -627,9 +722,7 @@ function reportPhotosSection(body, rep) {
   const config = store.config;
   const holder = el('<div></div>');
   body.appendChild(holder);
-  const q = { action: 'myReportPhotos', code: config.code, deviceId: store.deviceId, ref: rep.reference };
-  backendJSON(q).then((j) => {
-    const photos = j.photos || [];
+  reportPhotoList(rep, true).then((photos) => {
     if (!photos.length) return;
     holder.appendChild(sectionTitle('Photos'));
     const c = card();
@@ -757,7 +850,7 @@ Pages.myReportDetail = function (rep) {
 
     if (rep.type === 'Noise' && !rep.isClosed) repeatSection(body, rep);
 
-    if (!rep.isClosed) withdrawSection(body, rep);
+    if (!rep.isClosed) { updateSection(body, rep); withdrawSection(body, rep); }
 
     body.appendChild(sectionTitle('Progress'));
     const p = card();
