@@ -28,6 +28,34 @@ function friendlyError(e) {
 }
 const DRAFT_KEPT = '\n\nNothing was lost — your answers are still here.';
 
+// The "stop and think" gate before an urgent submission (Pete, 2026-09-19).
+// Urgent calls a real person out, after hours too; one extra tap is cheap.
+// Resolves 'send' | 'standard' | 'cancel'. Copy is sheet-driven
+// (Settings JSON urgentConfirmTitle / urgentConfirm).
+function confirmUrgent() {
+  return new Promise((resolve) => {
+    const cfg = (store.config && store.config.settings) || {};
+    const title = String(cfg.urgentConfirmTitle || '').trim() || 'Send as urgent?';
+    const text = String(cfg.urgentConfirm || '').trim() ||
+      "Urgent alerts the on-duty contact straight away \u2014 after hours too \u2014 and a call-out may be charged to the building. " +
+      "Choose it only if something is happening right now that can't wait: water running, someone stuck in the lift, a person at risk. " +
+      "If it can wait until business hours, send it as Standard.";
+    const wrap = document.createElement('div');
+    wrap.className = 'confirm-sheet';
+    wrap.innerHTML = '<div class="sheet-card">' +
+      '<div class="sheet-text"><b></b><p></p></div>' +
+      '<button class="destructive" data-r="send">Yes \u2014 someone is needed now</button>' +
+      '<button data-r="standard">No \u2014 send as Standard</button>' +
+      '<button data-r="cancel">Go back</button></div>';
+    wrap.querySelector('b').textContent = title;
+    wrap.querySelector('p').textContent = text;
+    const done = (r) => { wrap.remove(); resolve(r); };
+    wrap.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => done(b.dataset.r)));
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) done('cancel'); });
+    document.body.appendChild(wrap);
+  });
+}
+
 function toast(msg) {
   const t = $('toast');
   t.textContent = msg;

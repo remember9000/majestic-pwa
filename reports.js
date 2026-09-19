@@ -592,6 +592,11 @@ Pages.captureIssue = function () {
     btn.addEventListener('click', async () => {
       const d = details.load();
       if (!isValid(d)) { attempted = true; refresh(); errEl.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+      if (state.urgency === 'now') {
+        const choice = await confirmUrgent();
+        if (choice === 'cancel') return;
+        if (choice === 'standard') { state.urgency = 'later'; refresh(); }
+      }
       btn.disabled = true; btn.textContent = 'Sending…';
       const wasNow = state.urgency === 'now';
       try {

@@ -308,6 +308,11 @@ function formPage(opts) {
         errEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
         return;
       }
+      if (state.urgency === 'now') {
+        const choice = await confirmUrgent();
+        if (choice === 'cancel') return;
+        if (choice === 'standard') { state.urgency = 'later'; refresh(); }
+      }
       btn.disabled = true;
       btn.textContent = 'Submitting…';
       try {
