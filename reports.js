@@ -403,6 +403,18 @@ function captureList(key, dflt) {
   const raw = ((store.config.settings || {})[key] || '').split(',').map((s) => s.trim()).filter(Boolean);
   return raw.length ? raw : dflt;
 }
+// Who to phone if it can't wait for the call-back: the contact the
+// escalation actually alerted → the roster's on-duty contact (cached by
+// the contacts fetch) → the keyword pick below. Returns {name, phone}.
+function callTarget(esc) {
+  if (esc && esc.phone) return { name: esc.contact, phone: esc.phone };
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('onDuty-' + store.config.code)); } catch { d = null; }
+  if (d && d.phone) return { name: d.name || d.role, phone: d.phone };
+  const ah = afterHoursContact();
+  return ah ? { name: ah.name || ah.role, phone: ah.phone } : null;
+}
+
 function afterHoursContact() {
   let list = [];
   try { list = JSON.parse(localStorage.getItem('contacts-' + store.config.code)) || []; } catch { list = []; }
@@ -426,14 +438,8 @@ function urgencyBlock(body, state, refresh) {
   const drawCall = () => {
     callHolder.innerHTML = '';
     if (state.urgency !== 'now') return;
-    callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Need someone right now?</div>'));
-    const ah = afterHoursContact();
-    if (ah) {
-      const c = card();
-      c.appendChild(el(`<a class="navrow" href="${telHref(ah.phone)}"><span class="icon">📞</span><span><b>Call ${esc(ah.name || ah.role)}</b><br><span class="muted" style="font-size:13px">${[ah.name ? ah.role : '', ah.phone, hoursText(ah.hours)].filter(Boolean).map(esc).join(' · ')}</span></span><span class="chev">›</span></a>`));
-      callHolder.appendChild(c);
-    }
-    callHolder.appendChild(el('<div class="fhint">A call gets the response tonight. Sending this report keeps the record.</div>'));
+    // Emergency services only; the on-duty call offer comes after sending
+    // (Pete, 2026-09-19 — beside Urgent it read as a level above it).
     callHolder.appendChild(el('<div class="section-title" style="color:#d0021b">Emergency</div>'));
     const e = card();
     e.appendChild(el(`<a class="navrow" href="${telHref(emergencyNumber)}" style="color:#d0021b"><span class="icon">🆘</span><b>Fire, flood, gas or safety — call ${esc(emergencyNumber)}</b><span class="chev">›</span></a>`));
@@ -618,8 +624,8 @@ Pages.captureIssue = function () {
           if (e.minutes > 0 && e.next) msg += ` If nobody acknowledges within ${e.minutes} minutes it goes to ${e.next}.`;
           msg += " You'll get an update here when someone picks it up.";
         }
-        const ah = wasNow ? afterHoursContact() : null;
-        if (ah) msg += `\n\nIf this needs someone right now, call ${ah.name || ah.role} on ${ah.phone}.`;
+        const t = wasNow ? callTarget(resp.escalation) : null;
+        if (t) msg += `\n\nIf it can't wait for the call-back, phone ${t.name} on ${t.phone}.`;
         stopCamera();
         showAlert("Thank you — it's recorded", msg, goBack);
       } catch (e) {

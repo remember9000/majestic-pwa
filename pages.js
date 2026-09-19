@@ -339,6 +339,10 @@ function formPage(opts) {
             (e.minutes > 0 && e.next ? ` If nobody acknowledges within ${e.minutes} minutes it goes to ${e.next}.` : '') +
             " You'll get an update here when someone picks it up.";
         }
+        if (state.urgency === 'now') {
+          const t = callTarget(resp && resp.escalation);
+          if (t) escNote += `\n\nIf it can't wait for the call-back, phone ${t.name} on ${t.phone}.`;
+        }
         showAlert(opts.successTitle, opts.successMsg(id) + nudge + escNote, goBack);
       } catch (e) {
         showAlert('Submission Failed', friendlyError(e) + DRAFT_KEPT);

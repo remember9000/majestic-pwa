@@ -791,6 +791,8 @@ async function fetchContacts() {
   const r = await fetch(u);
   const j = await r.json();
   if (!j.success) throw new Error(j.error || 'Could not load the contacts.');
+  // Who's on duty right now (roster period + Contacts), for the post-send offer.
+  try { localStorage.setItem('onDuty-' + store.config.code, JSON.stringify(j.onDuty || null)); } catch { /* storage full/blocked */ }
   return j.contacts || [];
 }
 
