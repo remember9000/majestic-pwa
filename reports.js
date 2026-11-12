@@ -606,15 +606,16 @@ Pages.captureIssue = function () {
       btn.disabled = true; btn.textContent = 'Sending…';
       const wasNow = state.urgency === 'now';
       try {
-        const id = incidentID('IR');
+        // Kept with the draft so a retry is recognised; the server numbers it.
+        const clientRef = state.clientRef || (state.clientRef = incidentID('IR'));
         const resp = await postReport({
-          action: 'submitCapture', code: config.code, incidentID: id,
+          action: 'submitCapture', code: config.code, incidentID: clientRef,
           reporterName: details.fullName(d), unitNumber: d.unitNumber, phone: d.phoneNumber, email: d.email,
           urgency: state.urgency, level: state.level, area: state.area,
           locationDetail: state.locationDetail, description: state.description, photos: state.photos
         });
         delete drafts.capture;
-        let msg = `Reference ${id}.`;
+        let msg = `Reference ${resp.incidentID || clientRef}.`;
         if (resp.pendingVerification) msg += '\n\nTo send it to the building manager and receive progress updates, please verify your email address on the My Details page.';
         else if (resp.deliveredVia === 'email') msg += ' Sent to the building manager by email.';
         else msg += " It's in the building's register for the manager to pick up.";

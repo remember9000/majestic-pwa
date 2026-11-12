@@ -317,7 +317,10 @@ function formPage(opts) {
       btn.textContent = 'Submitting…';
       try {
         const d = details.load();
-        const id = incidentID(opts.prefix);
+        // The phone's own reference is only the key that lets the server
+        // recognise a retry, so it is kept with the draft until the submit
+        // succeeds. The server gives out the real number (2026-11-12).
+        const id = state.clientRef || (state.clientRef = incidentID(opts.prefix));
         const payload = opts.buildPayload(state, d);
         payload.incidentID = id;
         payload.code = store.config.code;
@@ -343,7 +346,7 @@ function formPage(opts) {
           const t = callTarget(resp && resp.escalation);
           if (t) escNote += `\n\nIf it can't wait for the call-back, phone ${t.name} on ${t.phone}.`;
         }
-        showAlert(opts.successTitle, opts.successMsg(id) + nudge + escNote, goBack);
+        showAlert(opts.successTitle, opts.successMsg((resp && resp.incidentID) || id) + nudge + escNote, goBack);
       } catch (e) {
         showAlert('Submission Failed', friendlyError(e) + DRAFT_KEPT);
         btn.disabled = false;
