@@ -644,6 +644,9 @@ function updateSection(body, rep) {
 Pages.updateReport = function (rep, onSent) {
   const config = store.config;
   const noun = rep.type === 'Issue' || /Report|Leak|Property|Security|Noise/.test(rep.type) ? 'report' : 'request';
+  // One id per draft (not per tap): sending again after an error that
+  // arrived once the server had saved the update is not logged twice.
+  const updateId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
   const state = { note: '', photos: [] };
   openPage('Update', (body) => {
     body.appendChild(sectionTitle("What's changed?"));
@@ -661,7 +664,6 @@ Pages.updateReport = function (rep, onSent) {
       const note = state.note.trim();
       if (!note && !state.photos.length) { alert('Add a note or a photo first.'); return; }
       send.disabled = true; send.textContent = 'Sending…';
-      const updateId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
       try {
         const r = await postReport({ action: 'updateReport', code: config.code, incidentID: rep.reference,
                                      note, photos: state.photos, updateId });
