@@ -122,7 +122,7 @@ function shutoffCallout(container) {
   let cached = null;
   try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch { cached = null; }
   if (cached) { show(cached); return; }
-  backendJSON({ action: 'unit', code: config.code, unit })
+  backendJSON({ action: 'unit', code: config.code, unit, deviceId: store.deviceId })
     .then((j) => { localStorage.setItem(cacheKey, JSON.stringify(j.unit)); show(j.unit); })
     .catch(() => { /* leave the form uncluttered */ });
 }

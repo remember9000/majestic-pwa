@@ -93,6 +93,7 @@ Pages.notices = function () {
       const b = e.target.closest('.alert-report');
       if (!b) return;
       e.stopPropagation();
+      if (String(b.dataset.ref).startsWith('UC-')) { Pages.myUnit(); return; }   // apartment connection, not a report
       const rep = reports.find((r) => r.reference === b.dataset.ref);
       rep ? Pages.myReportDetail(rep) : Pages.myReports();
     });
@@ -274,14 +275,19 @@ Pages.document = function (title, docKey) {
 };
 
 // ---------- My Unit ----------
+// Since 2026-11-14 a unit's meters and boundaries open once the
+// building's managers have approved this resident for the unit
+// ("Connect my apartment"); the shut-off valve shows regardless.
+// Mirrors MyUnitView.swift.
 Pages.myUnit = function () {
   const config = store.config;
   const noun = label(config, 'unitNoun', 'Unit');
+  const lower = noun.toLowerCase();
   const unitNumber = details.load().unitNumber.trim();
   openPage('My Home' + (unitNumber ? ' — ' + unitNumber : ''), (body) => {   // fixed label (UI notes item 2)
     if (!unitNumber) {
       const c = card();
-      c.appendChild(el(`<div class="frow muted" style="font-size:15px">Enter your ${esc(noun.toLowerCase())} number on the My Details page first, so we know which ${esc(noun.toLowerCase())} to show.</div>`));
+      c.appendChild(el(`<div class="frow muted" style="font-size:15px">Enter your ${esc(lower)} number on the My Details page first, so we know which ${esc(lower)} to show.</div>`));
       body.appendChild(c);
       return;
     }
@@ -289,12 +295,48 @@ Pages.myUnit = function () {
     body.appendChild(holder);
 
     const cacheKey = 'unitinfo-' + config.code + '-' + unitNumber;
-    const render = (info) => {
+    const accessKey = 'unitaccess-' + config.code + '-' + unitNumber;
+
+    // Where this device stands with the building for this unit.
+    const connection = (st) => {
+      const c = card();
+      const line = (icon, text, bold) =>
+        el(`<div class="frow" style="font-size:15px${bold ? ';font-weight:600;color:var(--primary)' : ''}"><span style="margin-right:8px">${icon}</span>${esc(text)}</div>`);
+      let hint = '';
+      if (st.access === 'approved') {
+        c.appendChild(line('✅', `Connected. The building's managers have confirmed this is your ${lower}.`, true));
+      } else if (st.access === 'requested') {
+        c.appendChild(line('⏳', 'Waiting for approval', true));
+        hint = `Your request went to the building's managers${st.requestedAt ? ' on ' + st.requestedAt : ''}. The rest of this page opens once they confirm you.`;
+      } else if (st.access === 'declined') {
+        c.appendChild(line('✕', 'Not approved', true));
+        hint = `The building's managers couldn't confirm you for ${lower} ${unitNumber} from the details sent. Please contact the building manager.`;
+      } else if (st.access === 'removed') {
+        c.appendChild(line('✕', 'No longer connected', true));
+        hint = `${noun} ${unitNumber} is no longer connected to you in this app. If that's a mistake, please contact the building manager.`;
+      } else {
+        const btn = el(`<button class="navrow" style="font-weight:600;color:var(--primary)"><span class="icon">🔗</span>Connect my ${esc(lower)}<span class="chev">›</span></button>`);
+        btn.addEventListener('click', () => Pages.connectUnit(unitNumber, (access) => {
+          localStorage.setItem(accessKey, JSON.stringify({ access, approvalRequired: true, requestedAt: '' }));
+        }));
+        c.appendChild(btn);
+        hint = `The building's managers confirm who lives in each ${lower} before its meters and boundaries are shown here. It's a one-off.`;
+      }
+      holder.appendChild(c);
+      if (hint) holder.appendChild(el(`<div class="fhint">${esc(hint)}</div>`));
+    };
+
+    const render = (info, st) => {
       holder.innerHTML = '';
-      if (!info || (!info.waterMeter && !info.waterShutoff && !info.electricalMeter && !info.boundaries)) {
-        const c = card();
-        c.appendChild(el(`<div class="frow muted" style="font-size:15px">Information for ${esc(noun.toLowerCase())} ${esc(unitNumber)} is being prepared — check back soon.</div>`));
-        holder.appendChild(c);
+      const open = !st || !st.approvalRequired || st.access === 'approved';
+      if (st && st.approvalRequired) connection(st);
+      const empty = !info || (!info.waterMeter && !info.waterShutoff && !info.electricalMeter && !info.boundaries);
+      if (empty) {
+        if (open && st) {
+          const c = card();
+          c.appendChild(el(`<div class="frow muted" style="font-size:15px">Information for ${esc(lower)} ${esc(unitNumber)} is being prepared — check back soon.</div>`));
+          holder.appendChild(c);
+        }
         return;
       }
       [['Water Meter', '⏲', info.waterMeter],
@@ -310,13 +352,76 @@ Pages.myUnit = function () {
         });
     };
 
-    try { render(JSON.parse(localStorage.getItem(cacheKey))); } catch { /* no cache */ }
-    backendJSON({ action: 'unit', code: config.code, unit: unitNumber })
+    // Cache first (the last standing too, so the page opens in the right state).
+    try {
+      render(JSON.parse(localStorage.getItem(cacheKey)), JSON.parse(localStorage.getItem(accessKey)));
+    } catch { /* no cache */ }
+    backendJSON({ action: 'unit', code: config.code, unit: unitNumber, deviceId: store.deviceId })
       .then((j) => {
+        // An older backend sends no standing: treat as a building without the check.
+        const st = { access: j.access || 'open', approvalRequired: !!j.approvalRequired, requestedAt: j.requestedAt || '' };
+        // What the backend sends is what is kept: after a connection is
+        // removed, the cached meters and boundaries go too.
         localStorage.setItem(cacheKey, JSON.stringify(j.unit));
-        render(j.unit);
+        localStorage.setItem(accessKey, JSON.stringify(st));
+        render(j.unit, st);
       })
       .catch(() => { /* keep cache */ });
+  });
+};
+
+// "Connect my apartment": shows exactly what goes to the building's
+// managers (name, unit, mobile, owner or renter) before anything is sent.
+Pages.connectUnit = function (unitNumber, onSent) {
+  const config = store.config;
+  const noun = label(config, 'unitNoun', 'Unit');
+  const lower = noun.toLowerCase();
+  const d = details.load();
+  const name = [d.firstName, d.lastName].map((x) => String(x || '').trim()).filter(Boolean).join(' ');
+  const mobile = String(d.phoneNumber || '').trim();
+  const state = { tenure: '' };
+  openPage('Connect', (body) => {
+    body.appendChild(sectionTitle("What the building's managers will see"));
+    const c = card();
+    [['Name', name || 'Not entered'], [noun, unitNumber], ['Mobile', mobile || 'Not entered']].forEach(([k, v]) => {
+      c.appendChild(el(`<div class="frow"><div class="inline"><span>${esc(k)}</span><span class="muted">${esc(v)}</span></div></div>`));
+    });
+    const who = el('<div class="frow"><label>I am the</label><div class="seg"></div></div>');
+    const seg = who.querySelector('.seg');
+    c.appendChild(who);
+    body.appendChild(c);
+    const ready = !!name && !!mobile;
+    body.appendChild(el(ready
+      ? '<div class="fhint">These four details go to the strata manager and the building manager only, so they can check you against their records. The committee does not see them.</div>'
+      : '<div class="ferror">Add your name and mobile number in My Details first.</div>'));
+
+    const send = el(`<button class="submitbtn">Connect my ${esc(lower)}</button>`);
+    const refresh = () => { send.disabled = !ready || !state.tenure; };
+    ['Owner', 'Renter'].forEach((o) => {
+      const b = el(`<button type="button">${o}</button>`);
+      b.addEventListener('click', () => {
+        state.tenure = o;
+        seg.querySelectorAll('button').forEach((x) => x.classList.remove('sel'));
+        b.classList.add('sel');
+        refresh();
+      });
+      seg.appendChild(b);
+    });
+    refresh();
+    body.appendChild(send);
+    send.addEventListener('click', async () => {
+      send.disabled = true; send.textContent = 'Sending…';
+      try {
+        const r = await postReport({ action: 'connectUnit', code: config.code, unit: unitNumber, name,
+                                     phone: mobile, email: String(d.email || '').trim(), tenure: state.tenure });
+        if (onSent) onSent(r.access || 'requested');
+        // Back to My Home, which redraws in its new state.
+        showAlert('Request sent', "The building's managers have been asked to confirm you. You'll get an alert in the app when they do.", goBack);
+      } catch (e) {
+        send.textContent = `Connect my ${lower}`; refresh();
+        alert(friendlyError(e));
+      }
+    });
   });
 };
 
