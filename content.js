@@ -307,13 +307,13 @@ Pages.myUnit = function () {
         c.appendChild(line('✅', `Connected. The building's managers have confirmed this is your ${lower}.`, true));
       } else if (st.access === 'requested') {
         c.appendChild(line('⏳', 'Waiting for approval', true));
-        hint = `Your request went to the building's managers${st.requestedAt ? ' on ' + st.requestedAt : ''}. The rest of this page opens once they confirm you.`;
+        hint = st.note || `Your request went to the building's managers${st.requestedAt ? ' on ' + st.requestedAt : ''}. The details for ${lower} ${unitNumber} open once they confirm you.`;
       } else if (st.access === 'declined') {
         c.appendChild(line('✕', 'Not approved', true));
-        hint = `The building's managers couldn't confirm you for ${lower} ${unitNumber} from the details sent. Please contact the building manager.`;
+        hint = st.note || `The building's managers couldn't confirm you for ${lower} ${unitNumber} from the details sent. To try again, contact the building manager, who can approve you from their end. It can't be reopened from the app.`;
       } else if (st.access === 'removed') {
         c.appendChild(line('✕', 'No longer connected', true));
-        hint = `${noun} ${unitNumber} is no longer connected to you in this app. If that's a mistake, please contact the building manager.`;
+        hint = st.note || `${noun} ${unitNumber} is no longer connected to you. To connect again, ask the building manager to approve you from their end. It can't be reopened from the app.`;
       } else {
         const btn = el(`<button class="navrow" style="font-weight:600;color:var(--primary)"><span class="icon">🔗</span>Connect my ${esc(lower)}<span class="chev">›</span></button>`);
         btn.addEventListener('click', () => Pages.connectUnit(unitNumber, (access) => {
@@ -359,7 +359,10 @@ Pages.myUnit = function () {
     backendJSON({ action: 'unit', code: config.code, unit: unitNumber, deviceId: store.deviceId })
       .then((j) => {
         // An older backend sends no standing: treat as a building without the check.
-        const st = { access: j.access || 'open', approvalRequired: !!j.approvalRequired, requestedAt: j.requestedAt || '' };
+        // `note`: the building's own words for this standing (2026-11-16); an
+        // older backend sends none and the built-in wording above is used.
+        const st = { access: j.access || 'open', approvalRequired: !!j.approvalRequired, requestedAt: j.requestedAt || '',
+                     note: (j.note && j.note.message) || '' };
         // What the backend sends is what is kept: after a connection is
         // removed, the cached meters and boundaries go too.
         localStorage.setItem(cacheKey, JSON.stringify(j.unit));
